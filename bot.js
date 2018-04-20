@@ -4,7 +4,7 @@ const logger = require('winston');
 const auth = require('./auth.json');
 const properties = require('./package.json');
 
-const botVersion = "0.2.5";
+const botVersion = "0.2.6";
 
 // Configure logger settings
 logger.remove(logger.transports.Console);
@@ -51,7 +51,7 @@ client.on('channelCreate', channel => {
 
 const prefix = '!';
 
-client.on('message', message => {
+client.on('message', message => {logger.log('debug', message.content);
     if (message.author.bot) {
         return;
     }
@@ -175,6 +175,9 @@ function cannotExecuteCommand(message, commandName) {
 var entrapmentIP = "JochCoolEntrapment.serv.nu";
 var entrapmentVersion = "1.12.2";
 var entrapmentGameRunning = false;
+var entrapmentOnRealms = false;
+
+//var tictactoegames = [];
 
 const commandErrorTypes = {
     "commandNameInvalid": "Unknown command. Type `" + prefix + "help` for a list of commands",
@@ -270,8 +273,17 @@ const commands = {
         'syntax': "ip",
         'description': "Returns the IP address of the current Entrapment server",
         'execute': function(message, commandArguments) {
-            return {"success": true, "returnText": "The IP address is `" + entrapmentIP + "` (Minecraft version " + entrapmentVersion + ")."};
-        }
+			if (typeof entrapmentIP == 'string') {
+				if (entrapmentOnRealms) {
+					return "Entrapment is played on the Realm of " + entrapmentIP + ".";
+				}
+				return "The IP address is `" + entrapmentIP + "` (Minecraft version " + entrapmentVersion + ").";
+			}
+			if (entrapmentOnRealms) {
+				return "Entrapment is played on Realms, but the owner of the Realm is unknown.";
+			}
+			return "The IP address of the server is unknown.";
+		}
     },
     'team': {
         'permittedChannels': [],
@@ -316,6 +328,11 @@ const commands = {
                         return {"success": true};
                     }
                     return {"success": false, "returnText": "You aren't in a team anyways!"};
+				default:
+					if (typeof commandArguments[0] == "undefined") {
+                        return {"success": false, "type": "argumentMissing", "returnText": "`(blue|red|none)`"};
+                    }
+                    return {"success": false, "type": "argumentInvalid", "returnText": "`" + commandArguments[0] + "`. Expected `blue`, `red` or `none`."};
             }
         }
     },
@@ -332,18 +349,51 @@ const commands = {
 						return {"success": false, "returnText": "Entrapment Game has already started."};
 					}
 					entrapmentGameRunning = true;
-					if (typeof commandArguments[1] == 'string') {
-						entrapmentIP = commandArguments[1];
+					
+					// Check any further arguments
+					switch (commandArguments[1]) {
+						case "server":
+							entrapmentOnRealms = false;
+							entrapmentIP = commandArguments[2];
+							break;
+						case "realm":
+						case "realms":
+							entrapmentOnRealms = true;
+							entrapmentIP = commandArguments[2];
+							break;
 					}
-                    return {"success": true, "returnText": "An Entrapment Game has started! IP: " + entrapmentIP};
-                    break;
+					
+					if (typeof entrapmentIP == 'string') {
+						if (entrapmentOnRealms) {
+							return {"success": true, "returnText": "An Entrapment Game has started on the Realm of " + entrapmentIP + "!"};
+						}
+						return {"success": true, "returnText": "An Entrapment Game has started! IP: `" + entrapmentIP + "`"};
+                    }
+					if (entrapmentOnRealms) {
+						return {"success": true, "returnText": "An Entrapment Game has started on Realms!"};
+					}
+					return {"success": true, "returnText": "An Entrapment Game has started! The IP is not specified."}
+					break;
+				
+				case "end":
                 case "stop":
                     if (!entrapmentGameRunning) {
 						return {"success": false, "returnText": "There is no game currently running."}
 					}
 					entrapmentGameRunning = false;
+					if (message.guild.available) {
+						let roleTeamBlue = message.guild.roles.find('name', "Lapis Team");
+						let roleTeamRed = message.guild.roles.find('name', "Redstone Team");
+						if (roleTeamBlue) {
+							roleTeamBlue.members.array().forEach(member => {member.removeRole(roleTeamBlue, "The Entrapment game ended."); });
+						}
+						if (roleTeamRed) {
+							roleTeamRed.members.array().forEach(member => {member.removeRole(roleTeamRed, "The Entrapment game ended."); });
+						}
+					}
 					return {"success": true, "returnText": "The Entrapment Game has concluded! Thanks for playing!"};
                     break;
+				
                 case "setip":
                     if (typeof commandArguments[1] == 'string') {
                         entrapmentIP = commandArguments[1];
@@ -351,20 +401,23 @@ const commands = {
                     }
 					return {"success": false, "type": "argumentMissing", "returnText": "`<newIP>`"};
                     break;
+				
 				case "setversion":
 					if (typeof commandArguments[1] == 'string') {
 						entrapmentVersion = commandArguments[1];
 						return {"success": true, "returnText": "Entrapment is now played on " + entrapmentVersion + "!"};
 					}
 					return {"success": false, "type": "argumentMissing", "returnText": "`<newVersion>`"}
+				
                 case "schedule":
                     return {"success": false, "returnText": "Scheduling games has not been implemented yet."};
                     break;
+				
                 default:
                     if (typeof commandArguments[0] == "undefined") {
-                        return {"success": false, "type": "argumentMissing", "returnText": "`<start|stop|schedule|setip>`"};
+                        return {"success": false, "type": "argumentMissing", "returnText": "`(start|stop|schedule|setip)`"};
                     }
-                    return {"success": false, "type": "argumentInvalid", "returnText": "`" + commandArguments[0] + "`. Expected `start`, `end`, `schedule` or `setip`."};
+                    return {"success": false, "type": "argumentInvalid", "returnText": "`" + commandArguments[0] + "`. Expected `start`, `stop`, `schedule` or `setip`."};
             }
         }
     },
@@ -381,6 +434,39 @@ const commands = {
             return {"success": true, "returnText": "pong"};
         }
     },
+	/*
+	'tictactoe': {
+		'permittedChannels': [],
+		'requiredRoles': [],
+		'hidden': false,
+		'syntax': "tictactoe (challenge|accept|deny|move) ...",
+		'description': "Play tic tac toe with someone! (Command WIP)",
+		'execute': function(message, commandArguments) {
+			switch (commandArguments[0]) {
+				case "challenge":
+					if (typeof commandArguments[1] == "undefined") {
+						return {"success": false, "type": "argumentMissing", "returnText": "`<user>`"}
+					}
+					if (!commandArguments[1].startsWith("<@")) {
+						return {"success": false, "type": "invalidArgument", "returnText": "`" + commandArguments[1] + "`. Expected a user mention."}
+					}
+					//message.guild.members[
+					break;
+				case "accept":
+					break;
+				case "deny":
+					break;
+				case "move":
+					break;
+				default:
+					if (typeof commandArguments[0] == "undefined") {
+						return {"success": false, "type": "argumentMissing", "returnText": "`(challenge|accept|deny|move)`"};
+					}
+					return {"success": false, "type": "invalidArgument", "returnText": "`" + commandArguments[0] + "`. Expected `challenge`, `accept`, `deny` or `move`."};
+			}
+		}
+	},
+	*/
     'stop': {
         'permittedChannels': ["bot-feed"],
         'requiredRoles': ["Mod"],
