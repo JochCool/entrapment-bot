@@ -8,7 +8,7 @@ const properties = require('./package.json');
 const fs = require('fs');
 var emojiNames = require('./emojinames.json');
 
-const botVersion = "0.3.0";
+const botVersion = "0.3.1";
 
 // Configure logger settings
 logger.remove(logger.transports.Console);
@@ -55,7 +55,8 @@ client.on('channelCreate', channel => {
 
 const prefix = '!';
 
-client.on('message', message => {logger.log('debug', message.content);
+client.on('message', message => {
+	logger.log('debug', message.author.username + ": " + message.content);
 	if (message.author.bot) {
 		return;
 	}
@@ -487,6 +488,26 @@ const commands = {
 	},
 	'ent': {
 		'alias': 'entrapment'
+	},
+	'random': {
+		'permittedChannels': [],
+		'requiredRoles': [],
+		'hidden': false,
+		'syntax': "random [[<min>] <max>]",
+		'description': "That's pretty random",
+		'execute': function(message, commandArguments) {
+			let result = Math.random();
+			if (!isNaN(commandArguments[0])) {
+				if (isNaN(commandArguments[1])) {
+					result *= Number(commandArguments[0]);
+				}
+				else {
+					result *= Number(commandArguments[1]) - Number(commandArguments[0]);
+					result += Number(commandArguments[0]);
+				}
+			}
+			return result.toString();
+		}
 	},
 	'ping': {
 		'permittedChannels': [],
