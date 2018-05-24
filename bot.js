@@ -1,15 +1,17 @@
+const botVersion = "0.3.2";
+console.log("Starting Entrapment Bot version " + botVersion);
+
 /** ───── BECOME A DISCORD BOT ───── **/
 
 // Require and read some things
 const Discord = require('discord.js');
-const logger = require('winston');
+//const logger = require('winston');
 const auth = require('./auth.json');
 const properties = require('./package.json');
 const fs = require('fs');
 var emojiNames = require('./emojinames.json');
 
-const botVersion = "0.3.1";
-
+/*
 // Configure logger settings
 logger.remove(logger.transports.Console);
 logger.add(logger.transports.Console, {
@@ -18,6 +20,7 @@ logger.add(logger.transports.Console, {
 logger.level = 'debug';
 
 logger.info("Starting Entrapment Bot version " + botVersion);
+*/
 
 // Initialize Discord Bot
 const client = new Discord.Client();
@@ -25,7 +28,7 @@ client.login(auth.token);
 
 // Once logged in
 client.on('ready', () => {
-	logger.info('Connected!');
+	console.log('Connected!');
 	
 	// Say it in bot feed
 	client.guilds.array().forEach(guild => {
@@ -39,7 +42,7 @@ client.on('ready', () => {
 });
 
 client.on('disconnected', function() {
-	logger.info("Disconnected from the server. Stopping!");
+	console.log("Disconnected from the server. Stopping!");
 	process.exit();
 });
 
@@ -56,7 +59,7 @@ client.on('channelCreate', channel => {
 const prefix = '!';
 
 client.on('message', message => {
-	logger.log('debug', message.author.username + ": " + message.content);
+	//logger.log('debug', message.author.username + ": " + message.content);
 	if (message.author.bot) {
 		return;
 	}
@@ -145,7 +148,7 @@ function executeCommand(message, command) {
 			message.channel.send(replyTxt);
 		}
 		else {
-			logger.log('warn', error);
+			console.log("WARN: " + error);
 			message.channel.send("An unknown error occurred while evaluating your command.");
 		}
 	}
@@ -251,26 +254,6 @@ const commands = {
 			}
 		}
 	},
-	'commander': {
-		'permittedChannels': [],
-		'requiredRoles': [],
-		'hidden': false,
-		'syntax': "commander",
-		'description': "Toggles the commander role for you",
-		'execute': function(message, commandArguments) {
-			let roleCommander = message.guild.roles.find('name', "Commander");
-			let playerIsCommander = message.member.roles.exists('name', "Commander");
-			
-			if (playerIsCommander) {
-				message.member.removeRole(roleCommander, "Player used `!commander` command");
-				return {"success": true, "returnText": "You are now a commander."};
-			}
-			else {
-				message.member.addRole(roleCommander, "Player used `!commander` command");
-				return {"success": true, "returnText": "You are no longer a commander."};
-			}
-		}
-	},
 	'emoji': {
 		'permittedChannels': [],
 		'requiredRoles': [],
@@ -334,6 +317,9 @@ const commands = {
 		'syntax': "ip",
 		'description': "Returns the IP address of the current Entrapment server",
 		'execute': function(message, commandArguments) {
+			if (!entrapmentGameRunning) {
+				return "There's no game of Entrapment currently running.";
+			}
 			if (typeof entrapmentIP == 'string') {
 				if (entrapmentOnRealms) {
 					return "Entrapment is played on the Realm of " + entrapmentIP + ".";
@@ -402,7 +388,7 @@ const commands = {
 		'requiredRoles': ["Mod"],
 		'hidden': false,
 		'syntax': "entrapment (start|stop|schedule|setip|setversion) ...",
-		'description': "command WIP",
+		'description': "Manages Entrapment games",
 		'execute': function(message, commandArguments) {
 			switch (commandArguments[0]) {
 				case "start":
@@ -559,7 +545,7 @@ const commands = {
 		'syntax': "stop",
 		'description': "Stops the bot",
 		'execute': function(message, commandArguments) {
-			logger.info("Stopping!");
+			console.log("Stopping!");
 			client.setInterval(client.destroy, 1000);
 			return {"success": true};
 		}
