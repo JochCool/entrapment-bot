@@ -1,4 +1,4 @@
-const botVersion = "0.3.2";
+const botVersion = "0.3.3";
 console.log("Starting Entrapment Bot version " + botVersion);
 
 /** ───── BECOME A DISCORD BOT ───── **/
@@ -267,15 +267,35 @@ const commands = {
 						return {"success": false, "returnText": "You don't have an emoji yet! Play a game of Entrapment and ask a moderator to add your emoji as a reward for playing along."};
 					}
 					if (!message.guild.available) {
-						return {"success": false, "returnText": "Something went wrong while finding the server, please ask a moderator for help."};
+						return {"success": false, "returnText": "It looks like the guild you're in is not available. Please ask a moderator for help."};
 					}
 					let emojiToUpdate = message.guild.emojis.find('name', emojiNames[message.author.id]);
 					if (!emojiToUpdate) {
-						return {"success": false, "returnText": "Your emoji appears to not exist. Please contat a moderator if you think this is an error."};
+						return {"success": false, "returnText": "Your emoji appears to not exist. Please contact a moderator if you think this is an error."};
 					}
-					message.guild.deleteEmoji(emojiToUpdate, message.author.username + " used `!emoji update` command");
-					message.guild.createEmoji(message.author.displayAvatarURL, emojiNames[message.author.id], null, message.author.username + " used `!emoji update` command");
-					return {"success": true, "returnText": "Your emoji has been updated."};
+					
+					// Try to upload the emoji
+					let result = {"success": true, "returnText": "Your emoji has been updated."};
+					message.guild.createEmoji(message.author.displayAvatarURL, emojiNames[message.author.id], null, message.author.username + " used `!emoji update` command").then(
+						
+						// if success, try to delete the prev emoji
+						createdEmoji => {
+							message.guild.deleteEmoji(emojiToUpdate, message.author.username + " used `!emoji update` command").then(
+							
+							() => message.react(createdEmoji),
+							
+							error => {
+								console.log("Error while deleting the emoji of " + message.username + ": " + error);
+								result = {"success": true, "returnText": "Something went wrong while removing your old emoji. Please contact a moderator for support."};
+							});
+						},
+						
+						error => {
+							console.log("Error while uploading the emoji of " + message.username + ": " + error);
+							result = {"success": false, "returnText": "Failed to update your emoji. A likely cause is that your profile picture is too powerful. Please contact a moderator for support."};
+						}
+					);
+					return result;
 					break;
 				case "setname":
 					if (typeof emojiNames[message.author.id] == "undefined") {
