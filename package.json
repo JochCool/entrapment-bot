@@ -1,7 +1,7 @@
 {
   "id": "372409767303446548",
   "name": "Entrapment Bot",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Helps at JochCool's Discord server",
   "main": "bot.js",
   "author": "JochCool",
