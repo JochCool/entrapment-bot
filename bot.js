@@ -1,4 +1,4 @@
-const botVersion = "0.4.0";
+const botVersion = "0.4.1";
 console.log("Starting Entrapment Bot version " + botVersion);
 
 /** ───── BECOME A DISCORD BOT ───── **/
@@ -121,7 +121,7 @@ function executeCommand(message, command) {
 			let syntax = currentArgument.getChildSyntax();
 			currentArgument = currentArgument.child;
 			
-			// type check
+			// input type check
 			command = command.trim();
 			input = null;
 			thisInputEnd = -1;
@@ -153,7 +153,7 @@ function executeCommand(message, command) {
 				throw new CommandResult(false, "It looks like the guild you're in is not available. Please contact a moderator for help.");
 			}
 			if (currentArgument.oplevel > userOpLevel) {
-				if (currentArgument.oplevel == 1) {
+				if (userOpLevel < 1) {
 					throw new CommandResult(false, "You can only run this command on a server.");
 				}
 				throw new CommandResult(false, "You do not have permission to use this command");
@@ -222,7 +222,7 @@ function startGameSession(message, options) {
 			let welcomeMessage = "A new game of " + newSession.gameName + " has been created by " + message.author + ".\n";
 			welcomeMessage += (newSession.serverType == "server") ? (newSession.serverName == "unknown") ? "Server IP is unknown." : "Server address: `" + newSession.serverName + "` (Minecraft version: " + newSession.serverVersion + ")" : (newSession.serverType == "realm") ? "Realm owner: " + newSession.serverName : "The server where the game is going to be played is unknown.";
 			let gameTextChannel = message.guild.channels.get(newSession.channelIDs.text);
-			gameTextChannel.send(welcomeMessage + "\nUse `" + prefix + "game setserver` to change where the game is going to be placed.\nUse `" + prefix + "game stop` to stop this game.");
+			gameTextChannel.send(welcomeMessage + "\nUse `" + prefix + "game setserver` to change where the game is going to be played.\nUse `" + prefix + "game stop` to stop this game.");
 			
 			// Add the host role to the creator of the session
 			let gameHostRole = message.guild.roles.find("name", "Game Host");
@@ -377,13 +377,16 @@ function changeGameSession(message, inputs, userOpLevel) {
 	// Change stuff
 	let somethingChanged = false;
 	
-	if (inputs["new name"] && inputs["new name"] != game.gameName) {
+	if (inputs["new name"]) {
 		if (inputs["new name"].length > 89) {
 			return new CommandResult(false, "That name is way too long! Please keep it under 90 characters.");
 		}
-		game.gameName = inputs["new name"];
-		message.guild.channels.get(game.channelIDs.category).setName("🔵 Playing " + game.gameName + "!", "User " + message.author.username + " changed the name of the game.").catch(console.log);
-		somethingChanged = true;
+		if (inputs["new name"] != game.gameName) {
+			game.gameName = inputs["new name"];
+			message.guild.channels.get(game.channelIDs.category).setName("🔵 Playing " + game.gameName + "!", "User " + message.author.username + " changed the name of the game.").catch(console.log);
+			message.guild.channels.get(game.channelIDs.text).setTopic("Talk about your game of " + newSession.gameName + " here!").catch(console.log);
+			somethingChanged = true;
+		}
 	}
 	
 	inputs.serverType = inputs.server || inputs.realm;
@@ -475,7 +478,7 @@ CommandArgument.prototype.isInputAllowed = function(command) {
 	return this.type == "text" || this.type == "literal" && input == this.name;
 };
 
-// Returns the syntaxt of this argument's child, properly formatted.
+// Returns the syntax of this argument's child, properly formatted.
 CommandArgument.prototype.getChildSyntax = function(withChildren) {
 	if (typeof this.child != "object") {
 		return "";
@@ -524,7 +527,7 @@ CommandArgument.prototype.getChildSyntax = function(withChildren) {
 	return syntax.trim();
 };
 
-// Returns an array of all possible child syntaxes (including the childs of the childs)
+// Returns an array of all possible child syntaxes (including the children of the children)
 CommandArgument.prototype.getAllChildSyntaxes = function() {
 	if (!this.child) {
 		return [""];
@@ -786,7 +789,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 		}
 		if (game.serverType == "server") {
 			if (game.serverName == "unknown") {
-				return "The IP address of the server is unkown.";
+				return "The IP address of the server is unknown.";
 			}
 			return "The IP address is `" + game.serverName + "` (Minecraft version: " + game.serverVersion + ").";
 		}
@@ -869,6 +872,92 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			}
 		})
 	]),
+	new CommandArgument("literal", "remindme", 0, null, 
+		new CommandArgument("literal", "in", 0, null,
+			new CommandArgument("text", "time", 0, null,
+				new CommandArgument("text", "message", 0, function(message, inputs) {
+					
+					let timeInput = [];
+					for (var i = 0; i < inputs.time.length; i++) {
+						if (isNaN(inputs.time[i])) {
+							if (timeInput.length == 0) {
+								return new CommandResult(false, "The timestamp must start with a number, followed by a unit (like `3h` or `2m45s`)");
+							}
+							if (typeof timeInput[timeInput.length-1] == "string") {
+								timeInput[timeInput.length-1] += inputs.time[i];
+							}
+							else {
+								timeInput.push(inputs.time[i]);
+							}
+						}
+						else {
+							if (timeInput.length > 0 && typeof timeInput[timeInput.length-1] == "number") {
+								timeInput[timeInput.length-1] *= 10;
+								timeInput[timeInput.length-1] += Number(inputs.time[i]);
+							}
+							else {
+								timeInput.push(Number(inputs.time[i]))
+							}
+						}
+					}
+					
+					console.log(timeInput);
+					console.log(timeInput[1]);
+					let timeInMs = 0;
+					for (var i = 0; i < timeInput.length; i += 2) {
+						switch (timeInput[i+1]) {
+							case "s":
+							case "sec":
+								timeInMs += timeInput[i]*1000;
+								break;
+							
+							case "m":
+							case "min":
+								timeInMs += timeInput[i]*60000;
+								break;
+							
+							case "h":
+							case "hour":
+								timeInMs += timeInput[i]*3600000;
+								break;
+							
+							case "ms":
+								timeInMs += timeInput[i];
+								break;
+							
+							case "day":
+								timeInMs += timeInput[i]*86400000;
+								break;
+							
+							case undefined:
+								return new CommandResult(false, "Please specify a unit after the number " + timeInput[i] + ".");
+							
+							default:
+								return new CommandResult(false, timeInput[i+1] + " is not a valid unit of time.");
+						}
+					}
+					if (timeInMs >= 2147483648) {
+						return new CommandResult(false, "That's far too long! Please keep it under 25 days.");
+					}
+					
+					client.setTimeout(() => {
+						message.channel.send(message.author + ", a reminder: " + inputs.message);
+					}, timeInMs);
+					return new CommandResult(true, "You will be reminded in " + timeInMs/1000 + " seconds.\nNote: if the bot goes offline before you are reminded, you won't be reminded.");
+				})
+			)
+		)/*,
+		new CommandArgument("literal", "at", 0, null,
+			new CommandArgument("text", "date", 0, null,
+				new CommandArgument("text", "time", 0, null,
+					new CommandArgument("text", "message", 0, function(message, inputs) {
+						return new CommandResult("This hasn't been implemented yet.");
+					})
+				)
+			)
+		)
+		*/
+	),
 	new CommandArgument("literal", "random", 0, function(message) {
 		return Math.random().toString();
 	},
