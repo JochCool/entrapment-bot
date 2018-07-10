@@ -1,4 +1,4 @@
-const botVersion = "0.4.1";
+const botVersion = "0.4.2";
 console.log("Starting Entrapment Bot version " + botVersion);
 
 /** ───── BECOME A DISCORD BOT ───── **/
@@ -593,16 +593,16 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			return new CommandResult(false, "The command `"+inputs.command+"` does not exist.");
 		})
 	),
-	new CommandArgument("literal", "active", 1, function(message) {
-		let roleActivePlayer = message.guild.roles.find('name', "Active Player");
+	new CommandArgument("literal", "gamer", 1, function(message) {
+		let roleGamer = message.guild.roles.find('name', "Gamer");
 		
-		if (message.member.roles.exists('name', "Active Player")) {
-			message.member.removeRole(roleActivePlayer, "Player used `!active` command");
-			return new CommandResult(true, message.author.username + " is now inactive.");
+		if (message.member.roles.exists('name', "Gamer")) {
+			message.member.removeRole(roleGamer, "Player used `!gamer` command");
+			return new CommandResult(true, message.author.username + " is no longer a gamer and will no longer be notified of games.");
 		}
 		else {
-			message.member.addRole(roleActivePlayer, "Player used `!active` command");
-			return new CommandResult(true, message.author.username + " is now active.");
+			message.member.addRole(roleGamer, "Player used `!gamer` command");
+			return new CommandResult(true, message.author.username + " is now a gamer and will be notified of games.");
 		}
 	}),
 	new CommandArgument("literal", "emoji", 1, null, [
