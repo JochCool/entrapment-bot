@@ -1,4 +1,4 @@
-const botVersion = "0.4.2";
+const botVersion = "0.5.0";
 console.log("Starting Entrapment Bot version " + botVersion);
 
 /** ───── BECOME A DISCORD BOT ───── **/
@@ -11,7 +11,7 @@ const fs = require('fs');
 var emojiNames = require('./emojinames.json');
 var gameSessions = require('./gamesessions.json');
 
-console.log("Requirements done");
+console.log("All modules loaded");
 if (properties.version != botVersion) {
 	console.log("Inconsistency between package version (" + properties.version + ") and code version (" + botVersion + ")");
 }
@@ -44,6 +44,20 @@ client.on('disconnected', function() {
 	console.log("Disconnected from the server. Stopping!");
 	process.exit();
 });
+
+client.on('error', function(error) {
+	console.log("WebSocket error:");
+	console.log(error);
+});
+
+Number.prototype.getStringWithPrecedingZeroes = function(num) {
+	let returnTxt = Math.floor(Math.abs(this)).toString();
+	while (returnTxt.length < num) {
+		returnTxt = '0' + returnTxt;
+	}
+	if (this < 0) returnTxt = "-" + returnTxt;
+	return returnTxt;
+}
 
 /** ───── MESSAGE PARSER ───── **/
 
@@ -168,7 +182,7 @@ function executeCommand(message, command) {
 			}
 			// last input; run the command
 			else {
-				console.log("running command at argument " + currentArgument.name);
+				//console.log("running command at argument " + currentArgument.name);
 				if (!currentArgument.run) {
 					throw new CommandResult(false, "Missing argument: `" + currentArgument.getChildSyntax() + "`");
 				}
@@ -201,156 +215,257 @@ function startGameSession(message, options) {
 		"concluded": false,
 		"channelIDs": {},
 		"creatorId": message.author.id,
+		"roleId": null,
 		"guildId": message.guild.id,
+		"announcementMessageId": null,
 		"creatorUserName": message.author.username,
 		"serverType": options.server || options.realm || "unknown",
 		"serverName": options.address || options["owner of realm"] || "unknown",
 		"serverVersion": options["minecraft version"] || "unknown",
-		"gameName": options["name of game"] || "Entrapment"
+		"gameName": options["name of game"] || "unknown"
 	};
 	
-	// Sends confirmation message and stuff once all channels have been created.
-	function finishSessionCreation() {
-		if (newSession.channelIDs.category && newSession.channelIDs.text && newSession.channelIDs.voiceGeneral && newSession.channelIDs.voiceBlue && newSession.channelIDs.voiceRed) {
-			
-			// Open up the associated game channels
-			for (var c in newSession.channelIDs) {
-				message.guild.channels.get(newSession.channelIDs[c]).overwritePermissions(message.guild.id, { "VIEW_CHANNEL": true }).catch(console.log);
-			}
-			
-			// Generate & send welcome message
-			let welcomeMessage = "A new game of " + newSession.gameName + " has been created by " + message.author + ".\n";
-			welcomeMessage += (newSession.serverType == "server") ? (newSession.serverName == "unknown") ? "Server IP is unknown." : "Server address: `" + newSession.serverName + "` (Minecraft version: " + newSession.serverVersion + ")" : (newSession.serverType == "realm") ? "Realm owner: " + newSession.serverName : "The server where the game is going to be played is unknown.";
-			let gameTextChannel = message.guild.channels.get(newSession.channelIDs.text);
-			gameTextChannel.send(welcomeMessage + "\nUse `" + prefix + "game setserver` to change where the game is going to be played.\nUse `" + prefix + "game stop` to stop this game.");
-			
-			// Add the host role to the creator of the session
-			let gameHostRole = message.guild.roles.find("name", "Game Host");
-			if (gameHostRole) {
-				message.member.addRole(gameHostRole, "This member became the host of game #" + newSession.id).catch(console.log);
-			}
-			
-			// Send result
-			let result = new CommandResult(true, "Your game has been set up! See " + gameTextChannel + ".");
-			result.evaluate(message);
-			
-			// Save game session
-			gameSessions.games.push(newSession);
-			fs.writeFile("gamesessions.json", JSON.stringify(gameSessions, null, 4), (err) => {
-				if (err) {
-					console.log(err);
-					message.channel.send("Something went wrong while saving your game. Please contact a moderator.").catch(console.log);
-				}
-			});
-		}
-	};
+	let teamBlueRole = message.guild.roles.find("name", "Team Blue");
+	let teamRedRole = message.guild.roles.find("name", "Team Red");
 	
-	// Create category for the game
-	message.guild.createChannel("🔵 Playing " + newSession.gameName + "!", "category", [
-		{
-			"id": message.guild.id,
-			"deny": ["VIEW_CHANNEL"]
-		}
-	], "User " + message.author.username + " started a game of " + newSession.gameName + " (id " + newSession.id + ").").then(
-		
-		gameCategory => {
-			console.log("Created new game category");
-			newSession.channelIDs.category = gameCategory.id;
+	// Create game role
+	message.guild.createRole({
+		"name": "Game #" + newSession.id,
+		"color": 16776960,
+		"hoist": true,
+		"position": teamRedRole ? teamRedRole.calculatedPosition-1 : 9,
+		"mentionable": false
+	}, "User " + message.author.username + " started a game of " + newSession.gameName + " (id " + newSession.id + ").").then(
+		gameRole => {
+			newSession.roleId = gameRole.id;
 			
-			// Move to correct position
-			gameCategory.setPosition(2).catch(err => { console.log("Error while setting the position of the new game category: " + err); });
-			
-			// Create game channel
-			gameCategory.guild.createChannel("game-" + newSession.id, "text", [
+			// Create category for the game
+			message.guild.createChannel("🔵 Playing " + newSession.gameName + "!", "category", [
 				{
 					"id": message.guild.id,
 					"deny": ["VIEW_CHANNEL"]
+				},
+				{
+					"id": gameRole,
+					"allow": ["VIEW_CHANNEL", "SEND_MESSAGES"]
 				}
 			], "Setting up game " + newSession.id).then(
 				
-				gameTextChannel => {
-					newSession.channelIDs.text = gameTextChannel.id;
-					gameTextChannel.setParent(gameCategory, "Setting up game " + newSession.id).catch(console.log);
-					gameTextChannel.setTopic("Talk about your game of " + newSession.gameName + " here!").catch(console.log);
-					finishSessionCreation();
+				gameCategory => {
+					console.log("Created new game category");
+					newSession.channelIDs.category = gameCategory.id;
+					
+					// Move to correct position
+					gameCategory.setPosition(2).catch(err => { console.log("Error while setting the position of the new game category: " + err); });
+					
+					// Create game channel
+					gameCategory.guild.createChannel("game-" + newSession.id, "text", [
+						{
+							"id": message.guild.id,
+							"deny": ["VIEW_CHANNEL"]
+						},
+						{
+							"id": gameRole,
+							"allow": ["VIEW_CHANNEL", "SEND_MESSAGES"]
+						}
+					], "Setting up game " + newSession.id).then(
+						
+						gameTextChannel => {
+							newSession.channelIDs.text = gameTextChannel.id;
+							gameTextChannel.setParent(gameCategory, "Setting up game " + newSession.id).catch(console.log);
+							gameTextChannel.setTopic("Talk about your game of " + newSession.gameName + " here!").catch(console.log);
+							finishSessionCreation();
+						},
+						err => {
+							console.log("Error while creating the text channel for the new game: " + err);
+							let result = new CommandResult(false, "Something went wrong while creating the game channels. Please contact a moderator for help.");
+							result.evaluate(message);
+						}
+					);
+					
+					// Create voice channels
+					gameCategory.guild.createChannel("Game General", "voice", [
+						{
+							"id": message.guild.id,
+							"deny": ["VIEW_CHANNEL"]
+						},
+						{
+							"id": gameRole,
+							"allow": ["VIEW_CHANNEL", "CONNECT"]
+						}
+					], "Setting up game " + newSession.id).then(
+						gameVoiceChannel => {
+							newSession.channelIDs.voiceGeneral = gameVoiceChannel.id;
+							gameVoiceChannel.setParent(gameCategory, "Setting up game " + newSession.id).catch(console.log);
+							finishSessionCreation();
+						},
+						err => {
+							console.log("Error while creating the general voice channel for the new game: " + err);
+							let result = new CommandResult(false, "Something went wrong while creating the game channels. Please contact a moderator for help.");
+							result.evaluate(message);
+						}
+					);
+					gameCategory.guild.createChannel("Game Team Blue", "voice", [
+						{
+							"id": message.guild.id,
+							"deny": ["VIEW_CHANNEL"]
+						},
+						{
+							"id": gameRole,
+							"allow": ["VIEW_CHANNEL", "CONNECT"]
+						},
+						{
+							"id": teamRedRole,
+							"deny": ["CONNECT", "SPEAK"]
+						}
+					], "Setting up game " + newSession.id).then(
+						gameVoiceChannel => {
+							newSession.channelIDs.voiceBlue = gameVoiceChannel.id;
+							gameVoiceChannel.setParent(gameCategory, "Setting up game " + newSession.id).catch(console.log);
+							finishSessionCreation();
+						},
+						err => {
+							console.log("Error while creating the team blue voice channel for the new game: " + err);
+							let result = new CommandResult(false, "Something went wrong while creating the game channels. Please contact a moderator for help.");
+							result.evaluate(message);
+						}
+					);
+					gameCategory.guild.createChannel("Game Team Red", "voice", [
+						{
+							"id": message.guild.id,
+							"deny": ["VIEW_CHANNEL"]
+						},
+						{
+							"id": gameRole.id,
+							"allow": ["VIEW_CHANNEL", "CONNECT"]
+						},
+						{
+							"id": teamBlueRole,
+							"deny": ["CONNECT", "SPEAK"]
+						}
+					], "Setting up game " + newSession.id).then(
+						gameVoiceChannel => {
+							newSession.channelIDs.voiceRed = gameVoiceChannel.id;
+							gameVoiceChannel.setParent(gameCategory, "Setting up game " + newSession.id).catch(console.log);
+							finishSessionCreation();
+						},
+						err => {
+							console.log("Error while creating the team red channel for the new game: " + err);
+							let result = new CommandResult(false, "Something went wrong while creating the game channels. Please contact a moderator for help.");
+							result.evaluate(message);
+						}
+					);
 				},
 				err => {
-					console.log("Error while creating the text channel for the new game: " + err);
-					let result = new CommandResult(false, "Something went wrong while creating the game channels. Please contact a moderator for help.");
-					result.evaluate(message);
-				}
-			);
-			
-			// Create voice channels
-			gameCategory.guild.createChannel("Game General", "voice", [
-				{
-					"id": message.guild.id,
-					"deny": ["VIEW_CHANNEL"]
-				}
-			], "Setting up game " + newSession.id).then(
-				gameVoiceChannel => {
-					newSession.channelIDs.voiceGeneral = gameVoiceChannel.id;
-					gameVoiceChannel.setParent(gameCategory, "Setting up game " + newSession.id).catch(console.log);
-					finishSessionCreation();
-				},
-				err => {
-					console.log("Error while creating the general voice channel for the new game: " + err);
-					let result = new CommandResult(false, "Something went wrong while creating the game channels. Please contact a moderator for help.");
-					result.evaluate(message);
-				}
-			);
-			gameCategory.guild.createChannel("Game Team Blue", "voice", [
-				{
-					"id": message.guild.id,
-					"deny": ["VIEW_CHANNEL"]
-				},
-				{
-					"id": message.guild.roles.find("name", "Team Red"),
-					"deny": ["CONNECT", "SPEAK"]
-				}
-			], "Setting up game " + newSession.id).then(
-				gameVoiceChannel => {
-					newSession.channelIDs.voiceBlue = gameVoiceChannel.id;
-					gameVoiceChannel.setParent(gameCategory, "Setting up game " + newSession.id).catch(console.log);
-					finishSessionCreation();
-				},
-				err => {
-					console.log("Error while creating the team blue voice channel for the new game: " + err);
-					let result = new CommandResult(false, "Something went wrong while creating the game channels. Please contact a moderator for help.");
-					result.evaluate(message);
-				}
-			);
-			gameCategory.guild.createChannel("Game Team Red", "voice", [
-				{
-					"id": message.guild.id,
-					"deny": ["VIEW_CHANNEL"]
-				},
-				{
-					"id": message.guild.roles.find("name", "Team Blue"),
-					"deny": ["CONNECT", "SPEAK"]
-				}
-			], "Setting up game " + newSession.id).then(
-				gameVoiceChannel => {
-					newSession.channelIDs.voiceRed = gameVoiceChannel.id;
-					gameVoiceChannel.setParent(gameCategory, "Setting up game " + newSession.id).catch(console.log);
-					finishSessionCreation();
-				},
-				err => {
-					console.log("Error while creating the team red channel for the new game: " + err);
+					console.log("Error while creating category for new game: " + err);
 					let result = new CommandResult(false, "Something went wrong while creating the game channels. Please contact a moderator for help.");
 					result.evaluate(message);
 				}
 			);
 		},
 		err => {
-			console.log("Error while creating category for new game: " + err);
-			let result = new CommandResult(false, "Something went wrong while creating the game channels. Please contact a moderator for help.");
+			console.log("Error while creating the role for the new game: " + err);
+			let result = new CommandResult(false, "Something went wrong while creating the game. Please contact a moderator for help.");
 			result.evaluate(message);
 		}
 	);
 	
+	// Sends confirmation message and stuff once all channels have been created.
+	function finishSessionCreation() {
+		if (newSession.channelIDs.voiceRed && newSession.channelIDs.voiceBlue && newSession.channelIDs.voiceGeneral && newSession.channelIDs.text && newSession.channelIDs.category && newSession.roleId) {
+			
+			// Add role to game creator
+			message.member.addRole(newSession.roleId, message.author.username + " created game #" + newSession.id).catch(console.log);
+			
+			// Create & send welcome message
+			let serverLocationMessage = "";
+			if (newSession.serverType == "server") {
+				if (newSession.serverName == "unknown") {
+					serverLocationMessage = "Server IP is unknown.";
+				}
+				else {
+					serverLocationMessage = "Server address: `" + newSession.serverName + "` (Minecraft version: " + newSession.serverVersion + ")";
+				}
+			}
+			else if (newSession.serverType == "realm") {
+				serverLocationMessage = "Realm owner: " + newSession.serverName;
+			}
+			else {
+				serverLocationMessage = "The server where the game is going to be played is unknown.";
+			}
+			let gameTextChannel = message.guild.channels.get(newSession.channelIDs.text);
+			gameTextChannel.send("A new game of " + newSession.gameName + " has been created by " + message.author + ".\n" + serverLocationMessage + "\nUse `" + prefix + "game setserver` to change where the game is going to be played.\nUse `" + prefix + "game stop` to stop this game.");
+			gameTextChannel.send("Anyone can leave this game with the command `" + prefix + "game leave`.");
+			
+			// Send result
+			let result = new CommandResult(true, "Your game has been set up! See " + gameTextChannel + ".");
+			result.evaluate(message);
+			
+			// Make announcement & save game
+			let gameAnnouncementChannel = message.guild.channels.find("name", "games");
+			if (gameAnnouncementChannel) {
+				let joinEmoji = message.guild.emojis.find("name", "EntrapmentNewGame");
+				if (joinEmoji) {
+					gameAnnouncementChannel.send("**Game #" + newSession.id + ": " + newSession.gameName + "**\nStarted by " + newSession.creatorUserName + "\n" + serverLocationMessage + "\nReact with " + joinEmoji + " to join!").then(
+						announcementMessage => {
+							
+							// React
+							announcementMessage.react(joinEmoji).catch(console.log);
+							let collector = announcementMessage.createReactionCollector(reaction => reaction.emoji == joinEmoji && reaction.count > 1);
+							collector.on("collect", reaction => {
+								let reactor = reaction.users.find(user => user != client.user);
+								console.log("User " + reactor.username + " reacted with " + joinEmoji);
+								let member = reaction.message.guild.members.get(reactor.id);
+								if (member.roles.has(newSession.roleId)) {
+									reaction.remove(reactor).catch(console.log);
+								}
+								else {
+									member.addRole(newSession.roleId, "User joined the game").then(
+										() => {
+											reaction.message.guild.channels.get(newSession.channelIDs.text).send(member + " joined!");
+											reaction.remove(reactor).catch(console.log);
+										},
+										err => {
+											console.log("Error while adding the game role to " + member + ": " + err);
+										}
+									);
+								}
+							});
+							
+							// Save session
+							newSession.announcementMessageId = announcementMessage.id;
+							saveGameSession(newSession, message.channel);
+						},
+						err => {
+							console.log("Failed to make announcement message for game #" + newSession.id + ": " + err);
+							saveGameSession(newSession, message.channel);
+						}
+					);
+				}
+				else {
+					console.log("Couldn't find the :EntrapmentNewGame: emoji while creating game " + newSession.id + "!");
+					saveGameSession(newSession, message.channel);
+				}
+			}
+			else {
+				console.log("Couldn't find the #games channel while creating game " + newSession.id + "!");
+				saveGameSession(newSession, message.channel);
+			}
+		}
+	};
+	
 	return new CommandResult(null, "Starting the game...");
 };
+
+function saveGameSession(newSession, errorChannel) {
+	gameSessions.games.push(newSession);
+	fs.writeFile("gamesessions.json", JSON.stringify(gameSessions, null, 4), (err) => {
+		if (err) {
+			console.log(err);
+			errorChannel.send("Something went wrong while saving your game. Please contact a moderator.").catch(console.log);
+		}
+	});
+}
 
 // Finds the game that this channel is part of
 function findGameSession(channel) {
@@ -414,6 +529,21 @@ function changeGameSession(message, inputs, userOpLevel) {
 				message.channel.send("Something went wrong while saving your game. Please contact a moderator.").catch(console.log);
 			}
 		});
+		// Update announcement message
+		let announcementChannel = message.guild.channels.find("name", "games")
+		if (announcementChannel) {
+			announcementChannel.fetchMessage(game.announcementMessageId).then(
+				announcementMessage => {
+					announcementMessage.edit("**Game #" + game.id + ": " + game.gameName + "**\nStarted by " + game.creatorUserName + "\n" + serverLocationMessage + "\nReact with " + message.guild.emojis.find("name", "EntrapmentNewGame") + " to join!").catch(console.log);
+				},
+				err => {
+					console.log("Couldn't find announcement message in " + announcementChannel + ": " + err);
+				}
+			);
+		}
+		else {
+			console.log("Couldn't find #games channel while updating game " + game.id);
+		}
 		return new CommandResult(true, "The game settings have been updated.");
 	}
 	
@@ -433,6 +563,7 @@ There are various types of arguments:
 - "literal" (you have to copy the name exactly)
 - "text" (you can fill in whatever text you want)
 - "number" (you have to fill in a valid number)
+- "date" (you have to fill in a valid Date, preferrable using ISO 8601 format)
 - "root" (not an argument, this is the first node in the tree)
 
 Each argument also has an op level, which is a number specifying the requirement to run this command.
@@ -472,8 +603,30 @@ CommandArgument.prototype.isInputAllowed = function(command) {
 		}
 	}
 	if (this.type == "number") {
+		let num = Number(input);
+		if (isNaN(num)) {
+			return false;
+		}
 		input = Number(input);
-		return !isNaN(input);
+		return true;
+	}
+	if (this.type == "date") {
+		let date;
+		if (input.startsWith('T')) {
+			let now = new Date();
+			
+			date = Date.parse(now.getFullYear() + "-" + (now.getMonth()+1).getStringWithPrecedingZeroes(2) + "-" + now.getDate().getStringWithPrecedingZeroes(2) + input);
+			//console.log(now.getFullYear() + "-" + now.getMonth() + "-" + now.getDate() + input);
+		}
+		else {
+			date = Date.parse(input);
+		}
+		console.log("parsed date: "+date);
+		if (isNaN(date)) {
+			return false;
+		}
+		input = date;
+		return true;
 	}
 	return this.type == "text" || this.type == "literal" && input == this.name;
 };
@@ -687,20 +840,18 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 		)
 	]),
 	new CommandArgument("literal", "game", 1, null, [
-		new CommandArgument("literal", "start", 2, startGameSession, [
-			new CommandArgument("literal", "server", 2, startGameSession,
-				new CommandArgument("text", "address", 2, startGameSession,
-					new CommandArgument("text", "minecraft version", 2, startGameSession,
-						new CommandArgument("text", "name of game", 2, startGameSession)
+		new CommandArgument("literal", "start", 2, null, 
+			new CommandArgument("text", "name of game", 2, startGameSession, [
+				new CommandArgument("literal", "server", 2, startGameSession,
+					new CommandArgument("text", "address", 2, startGameSession,
+						new CommandArgument("text", "minecraft version", 2, startGameSession)
 					)
+				),
+				new CommandArgument("literal", "realm", 2, startGameSession,
+					new CommandArgument("text", "owner of realm", 2, startGameSession)
 				)
-			),
-			new CommandArgument("literal", "realm", 2, startGameSession,
-				new CommandArgument("text", "owner of realm", 2, startGameSession,
-					new CommandArgument("text", "name of game", 2, startGameSession)
-				)
-			)
-		]),
+			])
+		),
 		new CommandArgument("literal", "setserver", 1, null, [
 			new CommandArgument("literal", "server", 1, null,
 				new CommandArgument("text", "address", 1, changeGameSession,
@@ -726,9 +877,25 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			}
 			return "The following games are currently running:" + returnTxt;
 		}),
+		new CommandArgument("literal", "leave", 1, function(message) {
+			let game = findGameSession(message.channel);
+			if (!game) {
+				return new CommandResult(false, "This command can only be executed in the text channel of the game.");
+			}
+			message.member.removeRole(game.roleId, "Player used `" + prefix + "game leave` command.").then(
+				() => {
+					let result = new CommandResult(true, message.member + " left the game.");
+					result.evaluate(message);
+				},
+				err => {
+					console.log(err);
+					let result = new CommandResult(false, "Something went wrong while leaving the game.");
+					result.evaluate(message);
+				}
+			);
+		}),
 		new CommandArgument("literal", "stop", 1, function(message) {
 			let game = findGameSession(message.channel);
-			console.log("Stopping game: " + game);
 			if (!game) {
 				return new CommandResult(false, "Games can only be stopped in their text channels.");
 			}
@@ -743,19 +910,40 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			game.concluded = true;
 			fs.writeFile("gamesessions.json", JSON.stringify(gameSessions, null, 4), err => { if (err) { console.log(err); } });
 			
-			// Remove voice channels
+			// Remove voice channels and role
 			message.guild.channels.get(game.channelIDs.voiceGeneral).delete("User " + message.author.username + " stopped the game.").catch(console.log);
 			message.guild.channels.get(game.channelIDs.voiceBlue).delete("User " + message.author.username + " stopped the game.").catch(console.log);
 			message.guild.channels.get(game.channelIDs.voiceRed).delete("User " + message.author.username + " stopped the game.").catch(console.log);
+			message.guild.roles.get(game.roleId).delete("User " + message.author.username + " stopped the game.").catch(console.log);
+			
+			// Remove announcement message
+			let announcementChannel = message.guild.channels.find("name", "games")
+			if (announcementChannel) {
+				announcementChannel.fetchMessage(game.announcementMessageId).then(
+					announcementMessage => {
+						announcementMessage.delete().catch(console.log);
+					},
+					err => {
+						console.log("Couldn't find announcement message in " + announcementChannel);
+					}
+				);
+			}
+			else {
+				console.log("Couldn't find #games channel while stopping game " + game.id);
+			}
 			
 			// Archive text channel
 			let gameTextChannel = message.guild.channels.get(game.channelIDs.text);
 			gameTextChannel.overwritePermissions(message.guild.id, { "VIEW_CHANNEL": false }, "User " + message.author.username + " stopped the game.").then(
 				() => {
+					// Move to game archives
 					gameTextChannel.setParent(message.guild.channels.find(channel => channel.name == "Game archives" && channel.type == "category"), "User " + message.author.username + " stopped the game.").catch(console.log);
 					
+					// Delete old parent category
 					message.guild.channels.get(game.channelIDs.category).delete("User " + message.author.username + " stopped the game.").catch(console.log);
 					
+					/*
+					// Remove game host role
 					if (message.member.roles.exists("name", "Game Host")) {
 						let gameOwnerShouldLoseRole = true;
 						for (var g = 0; g < gameSessions.games.length; g++) {
@@ -768,6 +956,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 							message.member.removeRole(message.guild.roles.find("name", "Game Host")).catch(console.log);
 						}
 					}
+					*/
 					
 					let result = new CommandResult(true, "The game has been concluded!");
 					result.evaluate(message);
@@ -793,11 +982,11 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			}
 			return "The IP address is `" + game.serverName + "` (Minecraft version: " + game.serverVersion + ").";
 		}
-		else if (game.serverType == "realm") {
+		if (game.serverType == "realm") {
 			if (game.serverName == "unknown") {
-				return "Entrapment is played on Realms, but the owner of the Realm is unknown.";
+				return "The game is played on Realms, but the owner of the Realm is unknown.";
 			}
-			return "Entrapment is played on the Realm of " + game.serverName + ".";
+			return "The game is played on the Realm of " + game.serverName + ".";
 		}
 		return "I don't know where this game is played.";
 	}),
@@ -872,7 +1061,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			}
 		})
 	]),
-	new CommandArgument("literal", "remindme", 0, null, 
+	new CommandArgument("literal", "remindme", 0, null, [
 		new CommandArgument("literal", "in", 0, null,
 			new CommandArgument("text", "time", 0, null,
 				new CommandArgument("text", "message", 0, function(message, inputs) {
@@ -901,8 +1090,6 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 						}
 					}
 					
-					console.log(timeInput);
-					console.log(timeInput[1]);
 					let timeInMs = 0;
 					for (var i = 0; i < timeInput.length; i += 2) {
 						switch (timeInput[i+1]) {
@@ -918,6 +1105,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 							
 							case "h":
 							case "hour":
+							case "hours":
 								timeInMs += timeInput[i]*3600000;
 								break;
 							
@@ -925,7 +1113,9 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 								timeInMs += timeInput[i];
 								break;
 							
+							case "d":
 							case "day":
+							case "days":
 								timeInMs += timeInput[i]*86400000;
 								break;
 							
@@ -946,18 +1136,25 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 					return new CommandResult(true, "You will be reminded in " + timeInMs/1000 + " seconds.\nNote: if the bot goes offline before you are reminded, you won't be reminded.");
 				})
 			)
-		)/*,
+		),
 		new CommandArgument("literal", "at", 0, null,
-			new CommandArgument("text", "date", 0, null,
-				new CommandArgument("text", "time", 0, null,
-					new CommandArgument("text", "message", 0, function(message, inputs) {
-						return new CommandResult("This hasn't been implemented yet.");
-					})
-				)
+			new CommandArgument("date", "date and time", 0, null,
+				new CommandArgument("text", "message", 0, function(message, inputs) {
+					let timeInMs = inputs["date and time"] - Date.now()
+					if (timeInMs < 0) {
+						return new CommandResult(false, "You cannot be reminded in the past!")
+					}
+					if (timeInMs >= 2147483648) {
+						return new CommandResult(false, "That's far too long! Please keep it under 25 days.");
+					}
+					client.setTimeout(() => {
+						message.channel.send(message.author + ", a reminder: " + inputs.message);
+					}, timeInMs);
+					return new CommandResult(true, "You will be reminded in " + timeInMs/1000 + " seconds.\nNote: if the bot goes offline before you are reminded, you won't be reminded.");
+				})
 			)
 		)
-		*/
-	),
+	]),
 	new CommandArgument("literal", "random", 0, function(message) {
 		return Math.random().toString();
 	},
@@ -976,9 +1173,4 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 		console.log("Stopping!");
 		message.react('👋').then(client.destroy, client.destroy).then(process.exit, process.exit);
 	})
-	/*
-	,new CommandArgument("literal", "impossible", 5, function(message) {
-		return "You did the impossible!";
-	})
-	*/
 ]);
