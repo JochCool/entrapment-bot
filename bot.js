@@ -1,5 +1,10 @@
-const botVersion = "0.5.0";
+const botVersion = "0.5.1";
 console.log("Starting Entrapment Bot version " + botVersion);
+
+/* TODO:
+- Debug the game category position
+- Improve the way teams work
+*/
 
 /** ───── BECOME A DISCORD BOT ───── **/
 
@@ -109,6 +114,11 @@ function executeCommand(message, command) {
 	try {
 		console.log("Executing command: "+command);
 		
+		// No new lines allowed
+		if (command.indexOf('\n') >= 0) {
+			throw new CommandResult(false, "Please keep your command on one line!");
+		}
+		
 		// determine op level
 		let userOpLevel = 0;
 		if (message.channel.type == "text" && message.guild) {
@@ -129,6 +139,7 @@ function executeCommand(message, command) {
 		// init
 		let currentArgument = commands;
 		let inputs = {};
+		command = command.trim();
 		
 		// loop through arguments to run the command
 		while (currentArgument.child) {
@@ -136,7 +147,6 @@ function executeCommand(message, command) {
 			currentArgument = currentArgument.child;
 			
 			// input type check
-			command = command.trim();
 			input = null;
 			thisInputEnd = -1;
 			let inputAllowed = false;
@@ -176,12 +186,13 @@ function executeCommand(message, command) {
 			// add input to inputs list
 			inputs[currentArgument.name] = input;
 			
-			// continue
+			// Next command
 			if (thisInputEnd >= 0) {
-				command = command.substring(thisInputEnd);
+				command = command.substring(thisInputEnd).trim();
 			}
+			
 			// last input; run the command
-			else {
+			if (thisInputEnd < 0 || command == "" || !currentArgument.child) {
 				//console.log("running command at argument " + currentArgument.name);
 				if (!currentArgument.run) {
 					throw new CommandResult(false, "Missing argument: `" + currentArgument.getChildSyntax() + "`");
@@ -209,6 +220,8 @@ function executeCommand(message, command) {
 	}
 };
 
+/** ───── GAME SESSIONS ───── **/
+
 function startGameSession(message, options) {
 	let newSession = {
 		"id": gameSessions.games.length,
@@ -222,7 +235,9 @@ function startGameSession(message, options) {
 		"serverType": options.server || options.realm || "unknown",
 		"serverName": options.address || options["owner of realm"] || "unknown",
 		"serverVersion": options["minecraft version"] || "unknown",
-		"gameName": options["name of game"] || "unknown"
+		"gameName": options["name of game"] || "unknown",
+		"serverLocationMessage": "",
+		"botVersion": botVersion
 	};
 	
 	let teamBlueRole = message.guild.roles.find("name", "Team Blue");
@@ -233,7 +248,7 @@ function startGameSession(message, options) {
 		"name": "Game #" + newSession.id,
 		"color": 16776960,
 		"hoist": true,
-		"position": teamRedRole ? teamRedRole.calculatedPosition-1 : 9,
+		"position": teamRedRole ? teamRedRole.calculatedPosition-2 : 8,
 		"mentionable": false
 	}, "User " + message.author.username + " started a game of " + newSession.gameName + " (id " + newSession.id + ").").then(
 		gameRole => {
@@ -378,23 +393,22 @@ function startGameSession(message, options) {
 			message.member.addRole(newSession.roleId, message.author.username + " created game #" + newSession.id).catch(console.log);
 			
 			// Create & send welcome message
-			let serverLocationMessage = "";
 			if (newSession.serverType == "server") {
 				if (newSession.serverName == "unknown") {
-					serverLocationMessage = "Server IP is unknown.";
+					newSession.serverLocationMessage = "Server IP is unknown.";
 				}
 				else {
-					serverLocationMessage = "Server address: `" + newSession.serverName + "` (Minecraft version: " + newSession.serverVersion + ")";
+					newSession.serverLocationMessage = "Server address: `" + newSession.serverName + "` (Minecraft version: " + newSession.serverVersion + ")";
 				}
 			}
 			else if (newSession.serverType == "realm") {
-				serverLocationMessage = "Realm owner: " + newSession.serverName;
+				newSession.serverLocationMessage = "Realm owner: " + newSession.serverName;
 			}
 			else {
-				serverLocationMessage = "The server where the game is going to be played is unknown.";
+				newSession.serverLocationMessage = "The server where the game is going to be played is unknown.";
 			}
 			let gameTextChannel = message.guild.channels.get(newSession.channelIDs.text);
-			gameTextChannel.send("A new game of " + newSession.gameName + " has been created by " + message.author + ".\n" + serverLocationMessage + "\nUse `" + prefix + "game setserver` to change where the game is going to be played.\nUse `" + prefix + "game stop` to stop this game.");
+			gameTextChannel.send("A new game of " + newSession.gameName + " has been created by " + message.author + ".\n" + newSession.serverLocationMessage + "\nUse `" + prefix + "game setserver` to change where the game is going to be played.\nUse `" + prefix + "game stop` to stop this game.");
 			gameTextChannel.send("Anyone can leave this game with the command `" + prefix + "game leave`.");
 			
 			// Send result
@@ -406,7 +420,7 @@ function startGameSession(message, options) {
 			if (gameAnnouncementChannel) {
 				let joinEmoji = message.guild.emojis.find("name", "EntrapmentNewGame");
 				if (joinEmoji) {
-					gameAnnouncementChannel.send("**Game #" + newSession.id + ": " + newSession.gameName + "**\nStarted by " + newSession.creatorUserName + "\n" + serverLocationMessage + "\nReact with " + joinEmoji + " to join!").then(
+					gameAnnouncementChannel.send("**Game #" + newSession.id + ": " + newSession.gameName + "**\nStarted by " + newSession.creatorUserName + "\n" + newSession.serverLocationMessage + "\nReact with " + joinEmoji + " to join!").then(
 						announcementMessage => {
 							
 							// React
@@ -534,7 +548,7 @@ function changeGameSession(message, inputs, userOpLevel) {
 		if (announcementChannel) {
 			announcementChannel.fetchMessage(game.announcementMessageId).then(
 				announcementMessage => {
-					announcementMessage.edit("**Game #" + game.id + ": " + game.gameName + "**\nStarted by " + game.creatorUserName + "\n" + serverLocationMessage + "\nReact with " + message.guild.emojis.find("name", "EntrapmentNewGame") + " to join!").catch(console.log);
+					announcementMessage.edit("**Game #" + game.id + ": " + game.gameName + "**\nStarted by " + game.creatorUserName + "\n" + game.serverLocationMessage + "\nReact with " + message.guild.emojis.find("name", "EntrapmentNewGame") + " to join!").catch(console.log);
 				},
 				err => {
 					console.log("Couldn't find announcement message in " + announcementChannel + ": " + err);
@@ -549,6 +563,8 @@ function changeGameSession(message, inputs, userOpLevel) {
 	
 	return new CommandResult(false, "Nothing changed.");
 };
+
+/** ───── COMMANDS ───── **/
 
 /*
 The commands object stores the syntax and function of all of the bot's commands, as a tree of arguments.
@@ -593,15 +609,38 @@ function CommandArgument(type, name, oplevel, runFunction, child) {
 // Returns whether or not the first input in the command string is a valid input for this argument
 CommandArgument.prototype.isInputAllowed = function(command) {
 	if (command == "") {
+		console.log("command is \"\" :(");
 		return false;
 	}
 	input = command;
-	if (this.child) {
-		thisInputEnd = command.indexOf(" ");
+	
+	// Literals
+	if (this.type == "literal") {
+		if (input.startsWith(this.name)) {
+			input = this.name;
+			thisInputEnd = this.name.length;
+			return true;
+		}
+	}
+	
+	// Quotes
+	if (input.startsWith('"') && this.type != "literal") {
+		thisInputEnd = input.slice(1).indexOf('"')+2;
+		if (thisInputEnd < 0) {
+			throw new CommandResult(false, "Please close your string!");
+		}
+		input = str.slice(1, thisInputEnd-1);
+	}
+	
+	// Spaces
+	else if (this.child) {
+		thisInputEnd = command.indexOf(' ');
 		if (thisInputEnd >= 0) {
 			input = command.substring(0, thisInputEnd);
 		}
 	}
+	
+	// Convert inputs
 	if (this.type == "number") {
 		let num = Number(input);
 		if (isNaN(num)) {
@@ -628,7 +667,8 @@ CommandArgument.prototype.isInputAllowed = function(command) {
 		input = date;
 		return true;
 	}
-	return this.type == "text" || this.type == "literal" && input == this.name;
+	
+	return this.type == "text";
 };
 
 // Returns the syntax of this argument's child, properly formatted.
@@ -910,11 +950,23 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			game.concluded = true;
 			fs.writeFile("gamesessions.json", JSON.stringify(gameSessions, null, 4), err => { if (err) { console.log(err); } });
 			
-			// Remove voice channels and role
+			// Let everyone leave their team & remove the game role
+			let gameRole = message.guild.roles.get(game.roleId);
+			if (!gameRole) {
+				console.log("Couldn't find the game role while stopping game " + game.id);
+			}
+			else {
+				let teamRedRole = message.guild.roles.find("name", "Team Red");
+				let teamBlueRole = message.guild.roles.find("name", "Team Blue");
+				gameRole.members.find(member => member.roles.has(teamBlueRole.id)).removeRole(teamBlueRole, "The game ended");
+				gameRole.members.find(member => member.roles.has(teamRedRole.id)).removeRole(teamBlueRole, "The game ended");
+				gameRole.delete("User " + message.author.username + " stopped the game.").catch(console.log);
+			}
+			
+			// Remove voice channels
 			message.guild.channels.get(game.channelIDs.voiceGeneral).delete("User " + message.author.username + " stopped the game.").catch(console.log);
 			message.guild.channels.get(game.channelIDs.voiceBlue).delete("User " + message.author.username + " stopped the game.").catch(console.log);
 			message.guild.channels.get(game.channelIDs.voiceRed).delete("User " + message.author.username + " stopped the game.").catch(console.log);
-			message.guild.roles.get(game.roleId).delete("User " + message.author.username + " stopped the game.").catch(console.log);
 			
 			// Remove announcement message
 			let announcementChannel = message.guild.channels.find("name", "games")
@@ -992,6 +1044,9 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 	}),
 	new CommandArgument("literal", "team", 1, null, [
 		new CommandArgument("literal", "blue", 1, function(message) {
+			if (!findGameSession(message.channel)) {
+				return new CommandResult(false, "This command can only be executed in the text channel of a game.");
+			}
 			if (message.member.roles.exists("name", "Team Blue")) {
 				return new CommandResult(false, "You are already in team blue! Type `" + prefix + "team none` to leave this team.");
 			}
@@ -1011,6 +1066,9 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			);
 		}),
 		new CommandArgument("literal", "red", 1, function(message) {
+			if (!findGameSession(message.channel)) {
+				return new CommandResult(false, "This command can only be executed in the text channel of a game.");
+			}
 			if (message.member.roles.exists("name", "Team Red")) {
 				return new CommandResult(false, "You are already in team red! Type `" + prefix + "team none` to leave this team.");
 			}
@@ -1173,4 +1231,19 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 		console.log("Stopping!");
 		message.react('👋').then(client.destroy, client.destroy).then(process.exit, process.exit);
 	})
+	/*
+	,new CommandArgument("literal", "testinput", 3, null,
+		new CommandArgument("text", "text", 3, null,
+			new CommandArgument("number", "number", 3, null,
+				new CommandArgument("date", "date", 3, function(message, inputs, userOpLevel) {
+					return "Literal: " + inputs.testinput +
+					       "\nText: " + inputs.text +
+						   "\nNumber: " + inputs.number +
+						   "\nDate: " + inputs.date +
+						   "\n\nYour OP level: " + userOpLevel;
+				})
+			)
+		)
+	)
+	*/
 ]);
