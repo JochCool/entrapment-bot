@@ -1,4 +1,4 @@
-const botVersion = "0.5.1";
+const botVersion = "0.5.2";
 console.log("Starting Entrapment Bot version " + botVersion);
 
 /* TODO:
@@ -13,8 +13,7 @@ const Discord = require('discord.js');
 const auth = require('./auth.json');
 const properties = require('./package.json');
 const fs = require('fs');
-var emojiNames = require('./emojinames.json');
-var gameSessions = require('./gamesessions.json');
+var data = require('./data.json');
 
 console.log("All modules loaded");
 if (properties.version != botVersion) {
@@ -224,7 +223,7 @@ function executeCommand(message, command) {
 
 function startGameSession(message, options) {
 	let newSession = {
-		"id": gameSessions.games.length,
+		"id": data.gamesessions.length,
 		"concluded": false,
 		"channelIDs": {},
 		"creatorId": message.author.id,
@@ -472,8 +471,8 @@ function startGameSession(message, options) {
 };
 
 function saveGameSession(newSession, errorChannel) {
-	gameSessions.games.push(newSession);
-	fs.writeFile("gamesessions.json", JSON.stringify(gameSessions, null, 4), (err) => {
+	data.gamesessions.push(newSession);
+	fs.writeFile("data.json", JSON.stringify(data, null, 4), (err) => {
 		if (err) {
 			console.log(err);
 			errorChannel.send("Something went wrong while saving your game. Please contact a moderator.").catch(console.log);
@@ -483,9 +482,9 @@ function saveGameSession(newSession, errorChannel) {
 
 // Finds the game that this channel is part of
 function findGameSession(channel) {
-	for (var g = 0; g < gameSessions.games.length; g++) {
-		if (gameSessions.games[g].channelIDs.category == channel.parentID) {
-			return gameSessions.games[g];
+	for (var g = 0; g < data.gamesessions.length; g++) {
+		if (data.gamesessions[g].channelIDs.category == channel.parentID) {
+			return data.gamesessions[g];
 		}
 	}
 	return null;
@@ -537,7 +536,7 @@ function changeGameSession(message, inputs, userOpLevel) {
 	
 	// Save & return
 	if (somethingChanged) {
-		fs.writeFile("gamesessions.json", JSON.stringify(gameSessions, null, 4), err => {
+		fs.writeFile("data.json", JSON.stringify(data, null, 4), err => {
 			if (err) {
 				console.log(err);
 				message.channel.send("Something went wrong while saving your game. Please contact a moderator.").catch(console.log);
@@ -621,10 +620,11 @@ CommandArgument.prototype.isInputAllowed = function(command) {
 			thisInputEnd = this.name.length;
 			return true;
 		}
+		return false;
 	}
 	
 	// Quotes
-	if (input.startsWith('"') && this.type != "literal") {
+	if (input.startsWith('"')) {
 		thisInputEnd = input.slice(1).indexOf('"')+2;
 		if (thisInputEnd < 0) {
 			throw new CommandResult(false, "Please close your string!");
@@ -641,6 +641,19 @@ CommandArgument.prototype.isInputAllowed = function(command) {
 	}
 	
 	// Convert inputs
+	if (this.type == "boolean") {
+		if (input.startsWith("true")) {
+			input = true;
+			thisInputEnd = 4;
+			return true;
+		}
+		if (input.startsWith("false")) {
+			input = false;
+			thisInputEnd = 5;
+			return true;
+		}
+		return false;
+	}
 	if (this.type == "number") {
 		let num = Number(input);
 		if (isNaN(num)) {
@@ -800,16 +813,16 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 	}),
 	new CommandArgument("literal", "emoji", 1, null, [
 		new CommandArgument("literal", "update", 1, function(message) {
-			if (typeof emojiNames[message.author.id] == "undefined") {
+			if (typeof data.emojinames[message.author.id] == "undefined") {
 				return new CommandResult(false, "You don't have an emoji yet! Play a game of Entrapment and ask a moderator to add your emoji as a reward for playing along.");
 			}
-			let emojiToUpdate = message.guild.emojis.find('name', emojiNames[message.author.id]);
+			let emojiToUpdate = message.guild.emojis.find('name', data.emojinames[message.author.id]);
 			if (!emojiToUpdate) {
 				return new CommandResult(false, "Your emoji appears to not exist. Please contact a moderator if you think this is an error.");
 			}
 			
 			// Try to upload the emoji
-			message.guild.createEmoji(message.author.displayAvatarURL, emojiNames[message.author.id], null, message.author.username + " used `!emoji update` command").then(
+			message.guild.createEmoji(message.author.displayAvatarURL, data.emojinames[message.author.id], null, message.author.username + " used `!emoji update` command").then(
 				
 				// if success, try to delete the prev emoji
 				createdEmoji => {
@@ -839,23 +852,23 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 		}),
 		new CommandArgument("literal", "setname", 1, null,
 			new CommandArgument("text", "newName", 1, function(message, inputs) {
-				if (typeof emojiNames[message.author.id] == "undefined") {
+				if (typeof data.emojinames[message.author.id] == "undefined") {
 					return new CommandResult(false, "You don't have an emoji yet! Play a game of Entrapment and ask a moderator to add your emoji as a reward for playing along.");
 				}
-				if (inputs.newName == emojiNames[message.author.id]) {
+				if (inputs.newName == data.emojinames[message.author.id]) {
 					return new CommandResult(false, "Your emoji already has that name!");
 				}
 				if (message.guild.emojis.find('name', inputs.newName)) {
 					return new CommandResult(false, "There is already an emoji with that name!");
 				}
-				let emojiToRename = message.guild.emojis.find('name', emojiNames[message.author.id]);
+				let emojiToRename = message.guild.emojis.find('name', data.emojinames[message.author.id]);
 				if (!emojiToRename) {
 					return new CommandResult(false, "Your emoji appears to not exist. Please contact a moderator if you think this is an error.");
 				}
 				emojiToRename.setName(inputs.newName, message.author.username + " used `!emoji setname` command.").then(
 					changedEmoji => {
-						emojiNames[message.author.id] = inputs.newName;
-						fs.writeFile('emojinames.json', JSON.stringify(emojiNames, null, 4), (err) => {
+						data.emojinames[message.author.id] = inputs.newName;
+						fs.writeFile('data.json', JSON.stringify(data, null, 4), (err) => {
 							let result = null;
 							if (err) {
 								console.log("Error while saving the new name of emoji " + emojiToRename  + ": " + err);
@@ -863,7 +876,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 							}
 							else {
 								message.react(emojiToRename);
-								result = new CommandResult(true, "The name of your emoji has been changed to `:" + emojiNames[message.author.id] + ":`.");
+								result = new CommandResult(true, "The name of your emoji has been changed to `:" + data.emojinames[message.author.id] + ":`.");
 							}
 							result.evaluate(message);
 						});
@@ -907,7 +920,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 		),
 		new CommandArgument("literal", "list", 1, function(message) {
 			let returnTxt = "";
-			gameSessions.games.forEach(game => {
+			data.gamesessions.forEach(game => {
 				if (!game.concluded) {
 					returnTxt += "\n• Game #" + game.id + ": " + game.gameName + " (created by " + game.creatorUserName + ").";
 				}
@@ -948,7 +961,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			
 			console.log("Stopping game " + game.id);
 			game.concluded = true;
-			fs.writeFile("gamesessions.json", JSON.stringify(gameSessions, null, 4), err => { if (err) { console.log(err); } });
+			fs.writeFile("data.json", JSON.stringify(data, null, 4), err => { if (err) { console.log(err); } });
 			
 			// Let everyone leave their team & remove the game role
 			let gameRole = message.guild.roles.get(game.roleId);
@@ -998,8 +1011,8 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 					// Remove game host role
 					if (message.member.roles.exists("name", "Game Host")) {
 						let gameOwnerShouldLoseRole = true;
-						for (var g = 0; g < gameSessions.games.length; g++) {
-							if (gameSessions.games[g].creatorId == message.author.id) {
+						for (var g = 0; g < data.gamesessions.length; g++) {
+							if (data.gamesessions[g].creatorId == message.author.id) {
 								gameOwnerShouldLoseRole = false;
 								break;
 							}
@@ -1225,25 +1238,10 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 		)
 	),
 	new CommandArgument("literal", "ping", 0, function(message) {
-		return new CommandResult(true, "pong");
+		return new CommandResult(true, "pong (" + client.ping + "ms)");
 	}),
 	new CommandArgument("literal", "stop", 3, function(message) {
 		console.log("Stopping!");
 		message.react('👋').then(client.destroy, client.destroy).then(process.exit, process.exit);
 	})
-	/*
-	,new CommandArgument("literal", "testinput", 3, null,
-		new CommandArgument("text", "text", 3, null,
-			new CommandArgument("number", "number", 3, null,
-				new CommandArgument("date", "date", 3, function(message, inputs, userOpLevel) {
-					return "Literal: " + inputs.testinput +
-					       "\nText: " + inputs.text +
-						   "\nNumber: " + inputs.number +
-						   "\nDate: " + inputs.date +
-						   "\n\nYour OP level: " + userOpLevel;
-				})
-			)
-		)
-	)
-	*/
 ]);
