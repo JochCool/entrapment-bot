@@ -1,0 +1,95 @@
+{
+    "emojinames": {
+        "372409767303446548":"entrapment",
+        "206135024293117952":"JochCoolGif",
+        "137847329746190336":"Chromatis",
+        "210514736993927169":"coolstoolguy",
+        "176296517173248002":"PingiPuck",
+        "226768344068521984":"dogface",
+        "269892884990394369":"wout",
+        "126069830494191616":"slicedlime",
+        "141199933914087424":"Mr_SoUndso",
+        "234530107853635596":"Sol",
+        "166644275793100801":"Swifter1243"
+    },
+    "gamesessions": [
+        {
+            "id": 0,
+            "concluded": true,
+            "channelIDs": {
+                "category": "465580215230398475",
+                "text": "465580217516294145",
+                "voiceGeneral": "465580218833305601",
+                "voiceBlue": "465580219864973313",
+                "voiceRed": "465580220859023390"
+            },
+            "creatorId": "206135024293117952",
+            "guildId": "248756103079395329",
+            "creatorUserName": "JochCool",
+            "serverType": "server",
+            "serverName": "mojangfixyourgame.aternos.me",
+            "serverVersion": "1.12.2",
+            "gameName": "Smash Swap",
+			"botVersion": "0.4.0"
+        },
+        {
+            "id": 1,
+            "concluded": true,
+            "channelIDs": {
+                "category": "467002153635151878",
+                "text": "467002155648417801",
+                "voiceGeneral": "467002157326008322",
+                "voiceBlue": "467002158164869162",
+                "voiceRed": "467002159137816591"
+            },
+            "creatorId": "206135024293117952",
+            "guildId": "248756103079395329",
+            "creatorUserName": "JochCool",
+            "serverType": "server",
+            "serverName": "149.202.70.172:41099",
+            "serverVersion": "1.12.2",
+            "gameName": "Entrapment",
+			"botVersion": "0.4.3_dev"
+        },
+        {
+            "id": 2,
+            "concluded": true,
+            "channelIDs": {
+                "category": "468462726495207455",
+                "text": "468462732736462848",
+                "voiceGeneral": "468462733369540623",
+                "voiceBlue": "468462734963638284",
+                "voiceRed": "468462736506880003"
+            },
+            "creatorId": "206135024293117952",
+            "guildId": "248756103079395329",
+            "creatorUserName": "JochCool",
+            "serverType": "server",
+            "serverName": "JochCoolGames.serv.nu",
+            "serverVersion": "1.12.2",
+            "gameName": "Imperium",
+			"botVersion": "0.4.3_dev"
+        },
+        {
+            "id": 3,
+            "concluded": true,
+            "channelIDs": {
+                "category": "469510515111100416",
+                "text": "469510516944011296",
+                "voiceGeneral": "469510517720088577",
+                "voiceBlue": "469510518672064543",
+                "voiceRed": "469510519619977217"
+            },
+            "creatorId": "206135024293117952",
+            "roleId": "469510513324195840",
+            "guildId": "248756103079395329",
+            "announcementMessageId": "469510520949571594",
+            "creatorUserName": "JochCool",
+            "serverType": "server",
+            "serverName": "JochCoolGames.serv.nu",
+            "serverVersion": "1.12.2",
+            "gameName": "Entrapment",
+            "botVersion": "0.5.0"
+        }
+    ]
+}
