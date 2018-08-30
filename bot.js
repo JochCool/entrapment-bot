@@ -1216,7 +1216,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 						return new CommandResult(false, "You cannot be reminded in the past!")
 					}
 					if (timeInMs >= 2147483648) {
-						return new CommandResult(false, "That's far too long! Please keep it under 25 days.");
+						return new CommandResult(false, "That's way too far into the future! Please keep it under 25 days from now.");
 					}
 					client.setTimeout(() => {
 						message.channel.send(message.author + ", a reminder: " + inputs.message);
