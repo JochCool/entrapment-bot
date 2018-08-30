@@ -1,4 +1,4 @@
-const botVersion = "0.5.2";
+const botVersion = "0.5.3";
 console.log("Starting Entrapment Bot version " + botVersion);
 
 /* TODO:
@@ -417,6 +417,19 @@ function startGameSession(message, options) {
 			// Make announcement & save game
 			let gameAnnouncementChannel = message.guild.channels.find("name", "games");
 			if (gameAnnouncementChannel) {
+				// Remove default message
+				if (data.noGameMessageId) {
+					noGameMessage.fetchMessage(data.noGameMessageId).then(
+						noGameMessage => {
+							noGameMessage.delete().catch(console.log);
+							data.noGameMessageId = null;
+						},
+						err => {
+							console.log("Couldn't find no game message in " + announcementChannel);
+						}
+					);
+				}
+				
 				let joinEmoji = message.guild.emojis.find("name", "EntrapmentNewGame");
 				if (joinEmoji) {
 					gameAnnouncementChannel.send("**Game #" + newSession.id + ": " + newSession.gameName + "**\nStarted by " + newSession.creatorUserName + "\n" + newSession.serverLocationMessage + "\nReact with " + joinEmoji + " to join!").then(
@@ -961,6 +974,38 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			
 			console.log("Stopping game " + game.id);
 			game.concluded = true;
+			
+			// Remove announcement message
+			let announcementChannel = message.guild.channels.find("name", "games")
+			if (announcementChannel) {
+				announcementChannel.fetchMessage(game.announcementMessageId).then(
+					announcementMessage => {
+						announcementMessage.delete().catch(console.log);
+					},
+					err => {
+						console.log("Couldn't find announcement message in " + announcementChannel);
+					}
+				);
+				// Check if any games are left
+				let gamesLeft = false;
+				for (var g = 0; g < data.gameSessions.length; g++) {
+					if (!data.gameSessions[g].concluded) {
+						gamesLeft = true;
+						break;
+					}
+				}
+				if (!gamesLeft) {
+					// Send announcement message
+					announcementChannel.send("**There are currently no games running!**\n\nWhen a game is started, you will be able to join from this channel.\nTo start a gaming session, use the `" + prefix + "game start` command.").then(
+						sentAnnouncement => {
+							data.noGameMessageId = sentAnnouncement.id;
+						}, console.log
+					);
+				}
+			else {
+				console.log("Couldn't find #games channel while stopping game " + game.id);
+			}
+				
 			fs.writeFile("data.json", JSON.stringify(data, null, 4), err => { if (err) { console.log(err); } });
 			
 			// Let everyone leave their team & remove the game role
@@ -980,22 +1025,6 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			message.guild.channels.get(game.channelIDs.voiceGeneral).delete("User " + message.author.username + " stopped the game.").catch(console.log);
 			message.guild.channels.get(game.channelIDs.voiceBlue).delete("User " + message.author.username + " stopped the game.").catch(console.log);
 			message.guild.channels.get(game.channelIDs.voiceRed).delete("User " + message.author.username + " stopped the game.").catch(console.log);
-			
-			// Remove announcement message
-			let announcementChannel = message.guild.channels.find("name", "games")
-			if (announcementChannel) {
-				announcementChannel.fetchMessage(game.announcementMessageId).then(
-					announcementMessage => {
-						announcementMessage.delete().catch(console.log);
-					},
-					err => {
-						console.log("Couldn't find announcement message in " + announcementChannel);
-					}
-				);
-			}
-			else {
-				console.log("Couldn't find #games channel while stopping game " + game.id);
-			}
 			
 			// Archive text channel
 			let gameTextChannel = message.guild.channels.get(game.channelIDs.text);
