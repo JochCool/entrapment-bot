@@ -988,8 +988,8 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 				);
 				// Check if any games are left
 				let gamesLeft = false;
-				for (var g = 0; g < data.gameSessions.length; g++) {
-					if (!data.gameSessions[g].concluded) {
+				for (var g = 0; g < data.gamesessions.length; g++) {
+					if (!data.gamesessions[g].concluded) {
 						gamesLeft = true;
 						break;
 					}
