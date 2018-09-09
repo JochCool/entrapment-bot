@@ -1016,8 +1016,14 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			else {
 				let teamRedRole = message.guild.roles.find("name", "Team Red");
 				let teamBlueRole = message.guild.roles.find("name", "Team Blue");
-				gameRole.members.find(member => member.roles.has(teamBlueRole.id)).removeRole(teamBlueRole, "The game ended");
-				gameRole.members.find(member => member.roles.has(teamRedRole.id)).removeRole(teamBlueRole, "The game ended");
+				gameRole.members.array().forEach(member => {
+					if (member.roles.has(teamBlueRole.id)) {
+						member.removeRole(teamBlueRole, "The game ended.");
+					}
+					if (member.roles.has(teamRedRole.id)) {
+						member.removeRole(teamRedRole, "The game ended.");
+					}
+				});
 				gameRole.delete("User " + message.author.username + " stopped the game.").catch(console.log);
 			}
 			
