@@ -129,7 +129,7 @@ function executeCommand(message, command) {
 				else if (message.member.roles.exists("name", "Mod")) {
 					userOpLevel = 3;
 				}
-				else if (message.member.roles.exists("name", "Active Player")) {
+				else if (message.member.roles.exists("name", "Gamer")) {
 					userOpLevel = 2;
 				}
 			}
