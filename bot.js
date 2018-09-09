@@ -22,7 +22,7 @@ if (properties.version != botVersion) {
 
 // Initialize Discord Bot
 const client = new Discord.Client();
-client.login(auth.token);
+client.login(auth.token).catch(console.error);
 
 // Once logged in
 client.on('ready', () => {
