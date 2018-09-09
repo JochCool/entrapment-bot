@@ -1002,6 +1002,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 						}, console.log
 					);
 				}
+			}
 			else {
 				console.log("Couldn't find #games channel while stopping game " + game.id);
 			}
