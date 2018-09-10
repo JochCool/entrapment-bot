@@ -15,6 +15,10 @@ const properties = require('./package.json');
 const fs = require('fs');
 var data = require('./data.json');
 
+function saveDataFile(callback) {
+	fs.writeFile("data.json", JSON.stringify(data, null, 4), callback || err => { if (err) { console.error(err); } });
+}
+
 console.log("All modules loaded");
 if (properties.version != botVersion) {
 	console.warn("Inconsistency between package version (" + properties.version + ") and code version (" + botVersion + ")");
@@ -253,7 +257,7 @@ function startGameSession(message, options) {
 			newSession.roleId = gameRole.id;
 			
 			// Create category for the game
-			message.guild.createChannel("🔵 Playing " + newSession.gameName + "!", "category", [
+			message.guild.createChannel("Game: " + newSession.gameName, "category", [
 				{
 					"id": message.guild.id,
 					"deny": ["VIEW_CHANNEL"]
@@ -482,6 +486,26 @@ function startGameSession(message, options) {
 				console.warn("Couldn't find the #games channel while creating game " + newSession.id + "!");
 				saveGameSession(newSession, message.channel);
 			}
+			
+			// Update Games category name
+			let gamesCategory = message.guild.channels.find("name", "Games");
+			if (gamesCategory) {
+				let numGames = 0;
+				for (var g = 0; g < data.gamesessions.length; g++) {
+					if (!data.gamesessions[g].concluded) {
+						numGames++;
+					}
+				}
+				if (numGames == 1) {
+					gamesCategory.setName("🔵 1 active game");
+				}
+				else {
+					gamesCategory.setName("🔵 " + numGames + " active games");
+				}
+			}
+			else {
+				console.warn("Couldn't find the Games category while creating game " + newSession.id + "!");
+			}
 		}
 	};
 	
@@ -490,7 +514,7 @@ function startGameSession(message, options) {
 
 function saveGameSession(newSession, errorChannel) {
 	data.gamesessions.push(newSession);
-	fs.writeFile("data.json", JSON.stringify(data, null, 4), (err) => {
+	saveDataFile(err => {
 		if (err) {
 			console.error(err);
 			errorChannel.send("Something went wrong while saving your game. Please contact a moderator.").catch(console.error);
@@ -529,7 +553,7 @@ function changeGameSession(message, inputs, userOpLevel) {
 		}
 		if (inputs["new name"] != game.gameName) {
 			game.gameName = inputs["new name"];
-			message.guild.channels.get(game.channelIDs.category).setName("🔵 Playing " + game.gameName + "!", "User " + message.author.username + " changed the name of the game.").catch(console.error);
+			message.guild.channels.get(game.channelIDs.category).setName("Game: " + game.gameName, "User " + message.author.username + " changed the name of the game.").catch(console.error);
 			message.guild.channels.get(game.channelIDs.text).setTopic("Talk about your game of " + newSession.gameName + " here!").catch(console.error);
 			somethingChanged = true;
 		}
@@ -554,7 +578,7 @@ function changeGameSession(message, inputs, userOpLevel) {
 	
 	// Save & return
 	if (somethingChanged) {
-		fs.writeFile("data.json", JSON.stringify(data, null, 4), err => {
+		saveDataFile(err => {
 			if (err) {
 				console.error(err);
 				message.channel.send("Something went wrong while saving your game. Please contact a moderator.").catch(console.error);
@@ -886,7 +910,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 				emojiToRename.setName(inputs.newName, message.author.username + " used `!emoji setname` command.").then(
 					changedEmoji => {
 						data.emojinames[message.author.id] = inputs.newName;
-						fs.writeFile('data.json', JSON.stringify(data, null, 4), (err) => {
+						saveDataFile(err => {
 							let result = null;
 							if (err) {
 								console.error("Error while saving the new name of emoji " + emojiToRename  + ": " + err);
@@ -978,6 +1002,15 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			}
 			
 			console.log("Stopping game " + game.id);
+			game.concluded = true;
+			
+			// Count remaining games
+			let numGames = 0;
+			for (var g = 0; g < data.gamesessions.length; g++) {
+				if (!data.gamesessions[g].concluded) {
+					numGames++;
+				}
+			}
 			
 			// Remove announcement message
 			let announcementChannel = message.guild.channels.find("name", "games")
@@ -990,29 +1023,43 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 						console.warn("Couldn't find announcement message in " + announcementChannel);
 					}
 				);
-				// Check if any games are left
-				let gamesLeft = false;
-				for (var g = 0; g < data.gamesessions.length; g++) {
-					if (!data.gamesessions[g].concluded) {
-						gamesLeft = true;
-						break;
-					}
-				}
-				if (!gamesLeft) {
-					// Send announcement message
+				if (numGames == 0) {
+					// Send message
 					announcementChannel.send("**There are currently no games running!**\n\nWhen a game is started, you will be able to join from this channel.\nTo start a gaming session, use the `" + prefix + "game start` command.").then(
 						sentAnnouncement => {
 							data.noGameMessageId = sentAnnouncement.id;
-						}, console.error
-					);
+							saveDataFile();
+						}
+					).catch(err => {
+						console.error("Error while sending no game announcement message: " + err);
+						saveDataFile();
+					});
+				}
+				else {
+					saveDataFile();
 				}
 			}
 			else {
 				console.warn("Couldn't find #games channel while stopping game " + game.id);
+				saveDataFile();
 			}
 			
-			game.concluded = true;
-			fs.writeFile("data.json", JSON.stringify(data, null, 4), err => { if (err) { console.error(err); } });
+			// Update Games category name
+			let gamesCategory = message.guild.channels.find("name", "Games");
+			if (gamesCategory) {
+				if (numGames == 1) {
+					gamesCategory.setName("🔵 " + numGames + " active game", "A game ended").catch(console.error);
+				}
+				else if (numGames > 0) {
+					gamesCategory.setName("🔵 " + numGames + " active games", "A game ended").catch(console.error);
+				}
+				else {
+					gamesCategory.setName("No active game", "A game ended").catch(console.error);
+				}
+			}
+			else {
+				console.warn("Couldn't find the Games category while creating game " + newSession.id + "!");
+			}
 			
 			// Let everyone leave their team & remove the game role
 			let gameRole = message.guild.roles.get(game.roleId);
