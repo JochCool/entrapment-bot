@@ -269,7 +269,12 @@ function startGameSession(message, options) {
 					newSession.channelIDs.category = gameCategory.id;
 					
 					// Move to correct position
-					gameCategory.setPosition(2).catch(err => { console.error("Error while setting the position of the new game category: " + err); });
+					gameCategory.setPosition(2).then(
+						() => {
+							console.log("Successfully set the position of the game category. calculatedPosition is " + gameCategory.calculatedPosition + ", position is " + gameCategory.position + ".");
+						},
+						err => { console.error("Error while setting the position of the new game category: " + err); }
+					);
 					
 					// Create game channel
 					gameCategory.guild.createChannel("game-" + newSession.id, "text", [
