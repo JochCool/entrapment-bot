@@ -17,7 +17,7 @@ var data = require('./data.json');
 
 console.log("All modules loaded");
 if (properties.version != botVersion) {
-	console.log("Inconsistency between package version (" + properties.version + ") and code version (" + botVersion + ")");
+	console.warn("Inconsistency between package version (" + properties.version + ") and code version (" + botVersion + ")");
 }
 
 // Initialize Discord Bot
@@ -36,7 +36,7 @@ client.on('ready', () => {
 				botFeedChannel.send("I'm online! Version: " + botVersion);
 			}
 			else {
-				console.log("Couldn't find channel bot-feed of guild " + guild.name + " (ID: " + guild.id + ")")
+				console.warn("Couldn't find channel bot-feed of guild " + guild.name + " (ID: " + guild.id + ")")
 			}
 		}
 	});
@@ -45,13 +45,13 @@ client.on('ready', () => {
 });
 
 client.on('disconnected', function() {
-	console.log("Disconnected from the server. Stopping!");
+	console.error("Disconnected from the server. Stopping!");
 	process.exit();
 });
 
 client.on('error', function(error) {
-	console.log("WebSocket error:");
-	console.log(error);
+	console.error("WebSocket error:");
+	console.error(error);
 });
 
 Number.prototype.getStringWithPrecedingZeroes = function(num) {
@@ -93,7 +93,7 @@ function CommandResult(success, replyText) {
 
 CommandResult.prototype.evaluate = function(message) {
 	if (!message) {
-		console.log("WARNING: MESSAGE OBJECT WAS NOT PASSED INTO THE EVALUATE METHOD OF " + this);
+		console.warn("WARNING: MESSAGE OBJECT WAS NOT PASSED INTO THE EVALUATE METHOD OF " + this);
 		return;
 	}
 	if (this.success == true) {
@@ -103,7 +103,7 @@ CommandResult.prototype.evaluate = function(message) {
 		message.react('❌'); // :x:
 	}
 	if (typeof this.replyText == "string" && this.replyText.length > 0) {
-		message.channel.send(this.replyText).catch(console.log);
+		message.channel.send(this.replyText).catch(console.error);
 	}
 };
 
@@ -192,7 +192,6 @@ function executeCommand(message, command) {
 			
 			// last input; run the command
 			if (thisInputEnd < 0 || command == "" || !currentArgument.child) {
-				//console.log("running command at argument " + currentArgument.name);
 				if (!currentArgument.run) {
 					throw new CommandResult(false, "Missing argument: `" + currentArgument.getChildSyntax() + "`");
 				}
@@ -212,7 +211,7 @@ function executeCommand(message, command) {
 			err.evaluate(message);
 		}
 		else {
-			console.log(err);
+			console.error(err);
 			let unknownResult = new CommandResult(false, "An unknown error occurred while evaluating your command.");
 			unknownResult.evaluate(message);
 		}
@@ -270,7 +269,7 @@ function startGameSession(message, options) {
 					newSession.channelIDs.category = gameCategory.id;
 					
 					// Move to correct position
-					gameCategory.setPosition(2).catch(err => { console.log("Error while setting the position of the new game category: " + err); });
+					gameCategory.setPosition(2).catch(err => { console.error("Error while setting the position of the new game category: " + err); });
 					
 					// Create game channel
 					gameCategory.guild.createChannel("game-" + newSession.id, "text", [
@@ -291,7 +290,7 @@ function startGameSession(message, options) {
 							finishSessionCreation();
 						},
 						err => {
-							console.log("Error while creating the text channel for the new game: " + err);
+							console.error("Error while creating the text channel for the new game: " + err);
 							let result = new CommandResult(false, "Something went wrong while creating the game channels. Please contact a moderator for help.");
 							result.evaluate(message);
 						}
@@ -310,11 +309,11 @@ function startGameSession(message, options) {
 					], "Setting up game " + newSession.id).then(
 						gameVoiceChannel => {
 							newSession.channelIDs.voiceGeneral = gameVoiceChannel.id;
-							gameVoiceChannel.setParent(gameCategory, "Setting up game " + newSession.id).catch(console.log);
+							gameVoiceChannel.setParent(gameCategory, "Setting up game " + newSession.id).catch(console.error);
 							finishSessionCreation();
 						},
 						err => {
-							console.log("Error while creating the general voice channel for the new game: " + err);
+							console.error("Error while creating the general voice channel for the new game: " + err);
 							let result = new CommandResult(false, "Something went wrong while creating the game channels. Please contact a moderator for help.");
 							result.evaluate(message);
 						}
@@ -335,11 +334,11 @@ function startGameSession(message, options) {
 					], "Setting up game " + newSession.id).then(
 						gameVoiceChannel => {
 							newSession.channelIDs.voiceBlue = gameVoiceChannel.id;
-							gameVoiceChannel.setParent(gameCategory, "Setting up game " + newSession.id).catch(console.log);
+							gameVoiceChannel.setParent(gameCategory, "Setting up game " + newSession.id).catch(console.error);
 							finishSessionCreation();
 						},
 						err => {
-							console.log("Error while creating the team blue voice channel for the new game: " + err);
+							console.error("Error while creating the team blue voice channel for the new game: " + err);
 							let result = new CommandResult(false, "Something went wrong while creating the game channels. Please contact a moderator for help.");
 							result.evaluate(message);
 						}
@@ -360,25 +359,25 @@ function startGameSession(message, options) {
 					], "Setting up game " + newSession.id).then(
 						gameVoiceChannel => {
 							newSession.channelIDs.voiceRed = gameVoiceChannel.id;
-							gameVoiceChannel.setParent(gameCategory, "Setting up game " + newSession.id).catch(console.log);
+							gameVoiceChannel.setParent(gameCategory, "Setting up game " + newSession.id).catch(console.error);
 							finishSessionCreation();
 						},
 						err => {
-							console.log("Error while creating the team red channel for the new game: " + err);
+							console.error("Error while creating the team red channel for the new game: " + err);
 							let result = new CommandResult(false, "Something went wrong while creating the game channels. Please contact a moderator for help.");
 							result.evaluate(message);
 						}
 					);
 				},
 				err => {
-					console.log("Error while creating category for new game: " + err);
+					console.error("Error while creating category for new game: " + err);
 					let result = new CommandResult(false, "Something went wrong while creating the game channels. Please contact a moderator for help.");
 					result.evaluate(message);
 				}
 			);
 		},
 		err => {
-			console.log("Error while creating the role for the new game: " + err);
+			console.error("Error while creating the role for the new game: " + err);
 			let result = new CommandResult(false, "Something went wrong while creating the game. Please contact a moderator for help.");
 			result.evaluate(message);
 		}
@@ -389,7 +388,7 @@ function startGameSession(message, options) {
 		if (newSession.channelIDs.voiceRed && newSession.channelIDs.voiceBlue && newSession.channelIDs.voiceGeneral && newSession.channelIDs.text && newSession.channelIDs.category && newSession.roleId) {
 			
 			// Add role to game creator
-			message.member.addRole(newSession.roleId, message.author.username + " created game #" + newSession.id).catch(console.log);
+			message.member.addRole(newSession.roleId, message.author.username + " created game #" + newSession.id).catch(console.error);
 			
 			// Create & send welcome message
 			if (newSession.serverType == "server") {
@@ -417,42 +416,29 @@ function startGameSession(message, options) {
 			// Make announcement & save game
 			let gameAnnouncementChannel = message.guild.channels.find("name", "games");
 			if (gameAnnouncementChannel) {
-				// Remove default message
-				if (data.noGameMessageId) {
-					noGameMessage.fetchMessage(data.noGameMessageId).then(
-						noGameMessage => {
-							noGameMessage.delete().catch(console.log);
-							data.noGameMessageId = null;
-						},
-						err => {
-							console.log("Couldn't find no game message in " + announcementChannel);
-						}
-					);
-				}
-				
 				let joinEmoji = message.guild.emojis.find("name", "EntrapmentNewGame");
 				if (joinEmoji) {
 					gameAnnouncementChannel.send("**Game #" + newSession.id + ": " + newSession.gameName + "**\nStarted by " + newSession.creatorUserName + "\n" + newSession.serverLocationMessage + "\nReact with " + joinEmoji + " to join!").then(
 						announcementMessage => {
 							
 							// React
-							announcementMessage.react(joinEmoji).catch(console.log);
+							announcementMessage.react(joinEmoji).catch(console.error);
 							let collector = announcementMessage.createReactionCollector(reaction => reaction.emoji == joinEmoji && reaction.count > 1);
 							collector.on("collect", reaction => {
 								let reactor = reaction.users.find(user => user != client.user);
 								console.log("User " + reactor.username + " reacted with " + joinEmoji);
 								let member = reaction.message.guild.members.get(reactor.id);
 								if (member.roles.has(newSession.roleId)) {
-									reaction.remove(reactor).catch(console.log);
+									reaction.remove(reactor).catch(console.error);
 								}
 								else {
 									member.addRole(newSession.roleId, "User joined the game").then(
 										() => {
 											reaction.message.guild.channels.get(newSession.channelIDs.text).send(member + " joined!");
-											reaction.remove(reactor).catch(console.log);
+											reaction.remove(reactor).catch(console.error);
 										},
 										err => {
-											console.log("Error while adding the game role to " + member + ": " + err);
+											console.error("Error while adding the game role to " + member + ": " + err);
 										}
 									);
 								}
@@ -463,18 +449,32 @@ function startGameSession(message, options) {
 							saveGameSession(newSession, message.channel);
 						},
 						err => {
-							console.log("Failed to make announcement message for game #" + newSession.id + ": " + err);
+							console.error("Failed to make announcement message for game #" + newSession.id + ": " + err);
 							saveGameSession(newSession, message.channel);
 						}
 					);
+					
 				}
 				else {
-					console.log("Couldn't find the :EntrapmentNewGame: emoji while creating game " + newSession.id + "!");
+					console.warn("Couldn't find the :EntrapmentNewGame: emoji while creating game " + newSession.id + "!");
 					saveGameSession(newSession, message.channel);
+				}
+				
+				// Remove default message
+				if (data.noGameMessageId) {
+					noGameMessage.fetchMessage(data.noGameMessageId).then(
+						noGameMessage => {
+							noGameMessage.delete().catch(console.error);
+							data.noGameMessageId = null;
+						},
+						err => {
+							console.error("Couldn't find no game message in " + announcementChannel);
+						}
+					);
 				}
 			}
 			else {
-				console.log("Couldn't find the #games channel while creating game " + newSession.id + "!");
+				console.warn("Couldn't find the #games channel while creating game " + newSession.id + "!");
 				saveGameSession(newSession, message.channel);
 			}
 		}
@@ -487,8 +487,8 @@ function saveGameSession(newSession, errorChannel) {
 	data.gamesessions.push(newSession);
 	fs.writeFile("data.json", JSON.stringify(data, null, 4), (err) => {
 		if (err) {
-			console.log(err);
-			errorChannel.send("Something went wrong while saving your game. Please contact a moderator.").catch(console.log);
+			console.error(err);
+			errorChannel.send("Something went wrong while saving your game. Please contact a moderator.").catch(console.error);
 		}
 	});
 }
@@ -524,8 +524,8 @@ function changeGameSession(message, inputs, userOpLevel) {
 		}
 		if (inputs["new name"] != game.gameName) {
 			game.gameName = inputs["new name"];
-			message.guild.channels.get(game.channelIDs.category).setName("🔵 Playing " + game.gameName + "!", "User " + message.author.username + " changed the name of the game.").catch(console.log);
-			message.guild.channels.get(game.channelIDs.text).setTopic("Talk about your game of " + newSession.gameName + " here!").catch(console.log);
+			message.guild.channels.get(game.channelIDs.category).setName("🔵 Playing " + game.gameName + "!", "User " + message.author.username + " changed the name of the game.").catch(console.error);
+			message.guild.channels.get(game.channelIDs.text).setTopic("Talk about your game of " + newSession.gameName + " here!").catch(console.error);
 			somethingChanged = true;
 		}
 	}
@@ -551,8 +551,8 @@ function changeGameSession(message, inputs, userOpLevel) {
 	if (somethingChanged) {
 		fs.writeFile("data.json", JSON.stringify(data, null, 4), err => {
 			if (err) {
-				console.log(err);
-				message.channel.send("Something went wrong while saving your game. Please contact a moderator.").catch(console.log);
+				console.error(err);
+				message.channel.send("Something went wrong while saving your game. Please contact a moderator.").catch(console.error);
 			}
 		});
 		// Update announcement message
@@ -560,15 +560,15 @@ function changeGameSession(message, inputs, userOpLevel) {
 		if (announcementChannel) {
 			announcementChannel.fetchMessage(game.announcementMessageId).then(
 				announcementMessage => {
-					announcementMessage.edit("**Game #" + game.id + ": " + game.gameName + "**\nStarted by " + game.creatorUserName + "\n" + game.serverLocationMessage + "\nReact with " + message.guild.emojis.find("name", "EntrapmentNewGame") + " to join!").catch(console.log);
+					announcementMessage.edit("**Game #" + game.id + ": " + game.gameName + "**\nStarted by " + game.creatorUserName + "\n" + game.serverLocationMessage + "\nReact with " + message.guild.emojis.find("name", "EntrapmentNewGame") + " to join!").catch(console.error);
 				},
 				err => {
-					console.log("Couldn't find announcement message in " + announcementChannel + ": " + err);
+					console.error("Couldn't find announcement message in " + announcementChannel + ": " + err);
 				}
 			);
 		}
 		else {
-			console.log("Couldn't find #games channel while updating game " + game.id);
+			console.error("Couldn't find #games channel while updating game " + game.id);
 		}
 		return new CommandResult(true, "The game settings have been updated.");
 	}
@@ -848,7 +848,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 						},
 						
 						error => {
-							console.log("Error while deleting the emoji of " + message.username + ": " + error);
+							console.error("Error while deleting the emoji of " + message.username + ": " + error);
 							let result = new CommandResult(false, "Something went wrong while removing your old emoji. Please contact a moderator for support.");
 							result.evaluate(message);
 						}
@@ -856,7 +856,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 				},
 				
 				error => {
-					console.log("Error while uploading the emoji of " + message.username + ": " + error);
+					console.error("Error while uploading the emoji of " + message.username + ": " + error);
 					let result = new CommandResult(false, "Failed to update your emoji. A likely cause is that your profile picture is too powerful. Please contact a moderator for support.");
 					result.evaluate(message);
 				}
@@ -884,7 +884,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 						fs.writeFile('data.json', JSON.stringify(data, null, 4), (err) => {
 							let result = null;
 							if (err) {
-								console.log("Error while saving the new name of emoji " + emojiToRename  + ": " + err);
+								console.error("Error while saving the new name of emoji " + emojiToRename  + ": " + err);
 								result = new CommandResult(false, "An unexpected error occurred while changing the name of your emoji. Please contact a moderator for help.");
 							}
 							else {
@@ -896,7 +896,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 					},
 					
 					error => {
-						console.log("Error while changing the name of emoji " + emojiToRename  + " to " + inputs.newName + ": " + error);
+						console.error("Error while changing the name of emoji " + emojiToRename  + " to " + inputs.newName + ": " + error);
 						let result = new CommandResult(false, "An unexpected error occurred while changing the name of your emoji. Please contact a moderator for help.");
 						result.evaluate(message);
 					}
@@ -954,7 +954,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 					result.evaluate(message);
 				},
 				err => {
-					console.log(err);
+					console.error(err);
 					let result = new CommandResult(false, "Something went wrong while leaving the game.");
 					result.evaluate(message);
 				}
@@ -973,17 +973,16 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			}
 			
 			console.log("Stopping game " + game.id);
-			game.concluded = true;
 			
 			// Remove announcement message
 			let announcementChannel = message.guild.channels.find("name", "games")
 			if (announcementChannel) {
 				announcementChannel.fetchMessage(game.announcementMessageId).then(
 					announcementMessage => {
-						announcementMessage.delete().catch(console.log);
+						announcementMessage.delete().catch(console.error);
 					},
 					err => {
-						console.log("Couldn't find announcement message in " + announcementChannel);
+						console.warn("Couldn't find announcement message in " + announcementChannel);
 					}
 				);
 				// Check if any games are left
@@ -999,20 +998,21 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 					announcementChannel.send("**There are currently no games running!**\n\nWhen a game is started, you will be able to join from this channel.\nTo start a gaming session, use the `" + prefix + "game start` command.").then(
 						sentAnnouncement => {
 							data.noGameMessageId = sentAnnouncement.id;
-						}, console.log
+						}, console.error
 					);
 				}
 			}
 			else {
-				console.log("Couldn't find #games channel while stopping game " + game.id);
+				console.warn("Couldn't find #games channel while stopping game " + game.id);
 			}
-				
-			fs.writeFile("data.json", JSON.stringify(data, null, 4), err => { if (err) { console.log(err); } });
+			
+			game.concluded = true;
+			fs.writeFile("data.json", JSON.stringify(data, null, 4), err => { if (err) { console.error(err); } });
 			
 			// Let everyone leave their team & remove the game role
 			let gameRole = message.guild.roles.get(game.roleId);
 			if (!gameRole) {
-				console.log("Couldn't find the game role while stopping game " + game.id);
+				console.warn("Couldn't find the game role while stopping game " + game.id);
 			}
 			else {
 				let teamRedRole = message.guild.roles.find("name", "Team Red");
@@ -1025,23 +1025,23 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 						member.removeRole(teamRedRole, "The game ended.");
 					}
 				});
-				gameRole.delete("User " + message.author.username + " stopped the game.").catch(console.log);
+				gameRole.delete("User " + message.author.username + " stopped the game.").catch(console.error);
 			}
 			
 			// Remove voice channels
-			message.guild.channels.get(game.channelIDs.voiceGeneral).delete("User " + message.author.username + " stopped the game.").catch(console.log);
-			message.guild.channels.get(game.channelIDs.voiceBlue).delete("User " + message.author.username + " stopped the game.").catch(console.log);
-			message.guild.channels.get(game.channelIDs.voiceRed).delete("User " + message.author.username + " stopped the game.").catch(console.log);
+			message.guild.channels.get(game.channelIDs.voiceGeneral).delete("User " + message.author.username + " stopped the game.").catch(console.error);
+			message.guild.channels.get(game.channelIDs.voiceBlue).delete("User " + message.author.username + " stopped the game.").catch(console.error);
+			message.guild.channels.get(game.channelIDs.voiceRed).delete("User " + message.author.username + " stopped the game.").catch(console.error);
 			
 			// Archive text channel
 			let gameTextChannel = message.guild.channels.get(game.channelIDs.text);
 			gameTextChannel.overwritePermissions(message.guild.id, { "VIEW_CHANNEL": false }, "User " + message.author.username + " stopped the game.").then(
 				() => {
 					// Move to game archives
-					gameTextChannel.setParent(message.guild.channels.find(channel => channel.name == "Game archives" && channel.type == "category"), "User " + message.author.username + " stopped the game.").catch(console.log);
+					gameTextChannel.setParent(message.guild.channels.find(channel => channel.name == "Game archives" && channel.type == "category"), "User " + message.author.username + " stopped the game.").catch(console.error);
 					
 					// Delete old parent category
-					message.guild.channels.get(game.channelIDs.category).delete("User " + message.author.username + " stopped the game.").catch(console.log);
+					message.guild.channels.get(game.channelIDs.category).delete("User " + message.author.username + " stopped the game.").catch(console.error);
 					
 					/*
 					// Remove game host role
@@ -1054,7 +1054,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 							}
 						}
 						if (gameOwnerShouldLoseRole) {
-							message.member.removeRole(message.guild.roles.find("name", "Game Host")).catch(console.log);
+							message.member.removeRole(message.guild.roles.find("name", "Game Host")).catch(console.error);
 						}
 					}
 					*/
@@ -1063,7 +1063,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 					result.evaluate(message);
 				},
 				err => {
-					console.log(err);
+					console.error(err);
 					let result = new CommandResult(false, "An unknown error occurred while deleting the game. Please ask a moderator for help.");
 					result.evaluate(message);
 				}
@@ -1100,7 +1100,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 				return new CommandResult(false, "You are already in team blue! Type `" + prefix + "team none` to leave this team.");
 			}
 			if (message.member.roles.exists("name", "Team Red")) {
-				message.member.removeRole(message.guild.roles.find("name", "Team Red"), "Player used `" + prefix + "team` command").catch(console.log);
+				message.member.removeRole(message.guild.roles.find("name", "Team Red"), "Player used `" + prefix + "team` command").catch(console.error);
 			}
 			message.member.addRole(message.guild.roles.find("name", "Team Blue"), "Player used `" + prefix + "team` command").then(
 				() => {
@@ -1108,7 +1108,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 					result.evaluate(message);
 				},
 				err => {
-					console.log(err);
+					console.error(err);
 					let result = new CommandResult(false, "Something went wrong while joining team blue. Please contact a moderator for help.");
 					result.evaluate(message);
 				}
@@ -1122,7 +1122,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 				return new CommandResult(false, "You are already in team red! Type `" + prefix + "team none` to leave this team.");
 			}
 			if (message.member.roles.exists("name", "Team Blue")) {
-				message.member.removeRole(message.guild.roles.find("name", "Team Blue"), "Player used `" + prefix + "team` command").catch(console.log);
+				message.member.removeRole(message.guild.roles.find("name", "Team Blue"), "Player used `" + prefix + "team` command").catch(console.error);
 			}
 			message.member.addRole(message.guild.roles.find("name", "Team Red"), "Player used `" + prefix + "team` command").then(
 				() => {
@@ -1130,7 +1130,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 					result.evaluate(message);
 				},
 				err => {
-					console.log(err);
+					console.error(err);
 					let result = new CommandResult(false, "Something went wrong while joining team red. Please contact a moderator for help.");
 					result.evaluate(message);
 				}
@@ -1144,7 +1144,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 						result.evaluate(message);
 					},
 					err => {
-						console.log(err);
+						console.error(err);
 						let result = new CommandResult(false, "Something went wrong while leaving your team. Please contact a moderator for help.");
 						result.evaluate(message);
 					}
@@ -1157,7 +1157,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 						result.evaluate(message);
 					},
 					err => {
-						console.log(err);
+						console.error(err);
 						let result = new CommandResult(false, "Something went wrong while leaving your team. Please contact a moderator for help.");
 						result.evaluate(message);
 					}
