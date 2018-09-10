@@ -16,7 +16,10 @@ const fs = require('fs');
 var data = require('./data.json');
 
 function saveDataFile(callback) {
-	fs.writeFile("data.json", JSON.stringify(data, null, 4), callback || err => { if (err) { console.error(err); } });
+	if (!callback) {
+		callback = err => { if (err) { console.error(err); } };
+	}
+	fs.writeFile("data.json", JSON.stringify(data, null, 4), callback);
 }
 
 console.log("All modules loaded");
