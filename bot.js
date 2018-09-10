@@ -425,6 +425,26 @@ function startGameSession(message, options) {
 			let result = new CommandResult(true, "Your game has been set up! See " + gameTextChannel + ".");
 			result.evaluate(message);
 			
+			// Update Games category name
+			let gamesCategory = message.guild.channels.find("name", "Games");
+			if (gamesCategory) {
+				let numGames = 1;
+				for (var g = 0; g < data.gamesessions.length; g++) {
+					if (!data.gamesessions[g].concluded) {
+						numGames++;
+					}
+				}
+				if (numGames == 1) {
+					gamesCategory.setName("🔵 1 active game");
+				}
+				else {
+					gamesCategory.setName("🔵 " + numGames + " active games");
+				}
+			}
+			else {
+				console.warn("Couldn't find the Games category while creating game " + newSession.id + "!");
+			}
+			
 			// Make announcement & save game
 			let gameAnnouncementChannel = message.guild.channels.find("name", "games");
 			if (gameAnnouncementChannel) {
@@ -488,26 +508,6 @@ function startGameSession(message, options) {
 			else {
 				console.warn("Couldn't find the #games channel while creating game " + newSession.id + "!");
 				saveGameSession(newSession, message.channel);
-			}
-			
-			// Update Games category name
-			let gamesCategory = message.guild.channels.find("name", "Games");
-			if (gamesCategory) {
-				let numGames = 0;
-				for (var g = 0; g < data.gamesessions.length; g++) {
-					if (!data.gamesessions[g].concluded) {
-						numGames++;
-					}
-				}
-				if (numGames == 1) {
-					gamesCategory.setName("🔵 1 active game");
-				}
-				else {
-					gamesCategory.setName("🔵 " + numGames + " active games");
-				}
-			}
-			else {
-				console.warn("Couldn't find the Games category while creating game " + newSession.id + "!");
 			}
 		}
 	};
