@@ -426,7 +426,7 @@ function startGameSession(message, options) {
 			result.evaluate(message);
 			
 			// Update Games category name
-			let gamesCategory = message.guild.channels.find("name", "Games");
+			let gamesCategory = message.guild.channels.find("name", "games").parent;
 			if (gamesCategory) {
 				let numGames = 1;
 				for (var g = 0; g < data.gamesessions.length; g++) {
@@ -547,7 +547,7 @@ function changeGameSession(message, inputs, userOpLevel) {
 		return new CommandResult(false, "Only the creator of this game or a moderator can change the game's address.");
 	}
 	
-	// Change stuff
+	// Change the things the user wants changed
 	let somethingChanged = false;
 	
 	if (inputs["new name"]) {
@@ -1015,9 +1015,9 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 				}
 			}
 			
-			// Remove announcement message
 			let announcementChannel = message.guild.channels.find("name", "games")
 			if (announcementChannel) {
+				// Remove announcement message
 				announcementChannel.fetchMessage(game.announcementMessageId).then(
 					announcementMessage => {
 						announcementMessage.delete().catch(console.error);
@@ -1026,11 +1026,31 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 						console.warn("Couldn't find announcement message in " + announcementChannel);
 					}
 				);
+				
+				// Update games category name
+				let gamesCategory = announcementChannel.parent;
+				if (gamesCategory) {
+					if (numGames == 1) {
+						gamesCategory.setName("🔵 " + numGames + " active game", "A game ended").catch(console.error);
+					}
+					else if (numGames > 0) {
+						gamesCategory.setName("🔵 " + numGames + " active games", "A game ended").catch(console.error);
+					}
+					else {
+						gamesCategory.setName("No active game", "A game ended").catch(console.error);
+					}
+				}
+				else {
+					console.warn("Couldn't find parent of #games while stopping game " + game.id);
+				}
+				
+				// Send no game message if necessary
 				if (numGames == 0) {
 					// Send message
 					announcementChannel.send("**There are currently no games running!**\n\nWhen a game is started, you will be able to join from this channel.\nTo start a gaming session, use the `" + prefix + "game start` command.").then(
 						sentAnnouncement => {
 							data.noGameMessageId = sentAnnouncement.id;
+							console.log("Set noGameMessageId to " + data.noGameMessageId);
 							saveDataFile();
 						}
 					).catch(err => {
@@ -1045,23 +1065,6 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			else {
 				console.warn("Couldn't find #games channel while stopping game " + game.id);
 				saveDataFile();
-			}
-			
-			// Update Games category name
-			let gamesCategory = message.guild.channels.find("name", "Games");
-			if (gamesCategory) {
-				if (numGames == 1) {
-					gamesCategory.setName("🔵 " + numGames + " active game", "A game ended").catch(console.error);
-				}
-				else if (numGames > 0) {
-					gamesCategory.setName("🔵 " + numGames + " active games", "A game ended").catch(console.error);
-				}
-				else {
-					gamesCategory.setName("No active game", "A game ended").catch(console.error);
-				}
-			}
-			else {
-				console.warn("Couldn't find the Games category while creating game " + newSession.id + "!");
 			}
 			
 			// Let everyone leave their team & remove the game role
