@@ -992,7 +992,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 				}
 			);
 		}),
-		new CommandArgument("literal", "stop", 1, function(message) {
+		new CommandArgument("literal", "stop", 1, function(message, inputs, userOpLevel) {
 			let game = findGameSession(message.channel);
 			if (!game) {
 				return new CommandResult(false, "Games can only be stopped in their text channels.");
