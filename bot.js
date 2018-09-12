@@ -15,16 +15,16 @@ const properties = require('./package.json');
 const fs = require('fs');
 var data = require('./data.json');
 
+console.log("All modules loaded");
+if (properties.version != botVersion) {
+	console.warn("Inconsistency between package version (" + properties.version + ") and code version (" + botVersion + ")");
+}
+
 function saveDataFile(callback) {
 	if (!callback) {
 		callback = err => { if (err) { console.error(err); } };
 	}
 	fs.writeFile("data.json", JSON.stringify(data, null, 4), callback);
-}
-
-console.log("All modules loaded");
-if (properties.version != botVersion) {
-	console.warn("Inconsistency between package version (" + properties.version + ") and code version (" + botVersion + ")");
 }
 
 // Initialize Discord Bot
@@ -448,6 +448,20 @@ function startGameSession(message, options) {
 			// Make announcement & save game
 			let gameAnnouncementChannel = message.guild.channels.find("name", "games");
 			if (gameAnnouncementChannel) {
+				
+				// Remove default message
+				if (data.noGameMessageId) {
+					message.channel.fetchMessage(data.noGameMessageId).then(
+						noGameMessage => {
+							noGameMessage.delete().catch(console.error);
+						},
+						err => {
+							console.error("Couldn't find no game message in " + gameAnnouncementChannel);
+						}
+					);
+					data.noGameMessageId = null;
+				}
+				
 				let joinEmoji = message.guild.emojis.find("name", "EntrapmentNewGame");
 				if (joinEmoji) {
 					gameAnnouncementChannel.send("**Game #" + newSession.id + ": " + newSession.gameName + "**\nStarted by " + newSession.creatorUserName + "\n" + newSession.serverLocationMessage + "\nReact with " + joinEmoji + " to join!").then(
@@ -490,19 +504,6 @@ function startGameSession(message, options) {
 				else {
 					console.warn("Couldn't find the :EntrapmentNewGame: emoji while creating game " + newSession.id + "!");
 					saveGameSession(newSession, message.channel);
-				}
-				
-				// Remove default message
-				if (data.noGameMessageId) {
-					noGameMessage.fetchMessage(data.noGameMessageId).then(
-						noGameMessage => {
-							noGameMessage.delete().catch(console.error);
-							data.noGameMessageId = null;
-						},
-						err => {
-							console.error("Couldn't find no game message in " + announcementChannel);
-						}
-					);
 				}
 			}
 			else {
@@ -557,7 +558,7 @@ function changeGameSession(message, inputs, userOpLevel) {
 		if (inputs["new name"] != game.gameName) {
 			game.gameName = inputs["new name"];
 			message.guild.channels.get(game.channelIDs.category).setName("Game: " + game.gameName, "User " + message.author.username + " changed the name of the game.").catch(console.error);
-			message.guild.channels.get(game.channelIDs.text).setTopic("Talk about your game of " + newSession.gameName + " here!").catch(console.error);
+			message.guild.channels.get(game.channelIDs.text).setTopic("Talk about your game of " + game.gameName + " here!").catch(console.error);
 			somethingChanged = true;
 		}
 	}
