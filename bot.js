@@ -35,7 +35,7 @@ client.login(auth.token).catch(console.error);
 client.on('ready', () => {
 	console.log('Connected!');
 	
-	// Say it in bot feed
+	// Say it in bot feed & check Gamer role timeout
 	client.guilds.array().forEach(guild => {
 		if (guild.available) {
 			let botFeedChannel = guild.channels.find('name', "bot-feed");
@@ -44,6 +44,16 @@ client.on('ready', () => {
 			}
 			else {
 				console.warn("Couldn't find channel bot-feed of guild " + guild.name + " (ID: " + guild.id + ")")
+			}
+			
+			if (typeof data.lastGamerMention == "number") {
+				let gamerRoleTimeout = 1200000 - (Date.now() - data.lastGamerMention);
+				if (gamerRoleTimeout > 0) {
+					client.setTimeout(resetGamerRoleTimer, gamerRoleTimeout, guild.roles.find("name", "Gamer"));
+				}
+				else {
+					resetGamerRoleTimer(guild.roles.find("name", "Gamer"));
+				}
 			}
 		}
 	});
@@ -68,7 +78,13 @@ Number.prototype.getStringWithPrecedingZeroes = function(num) {
 	}
 	if (this < 0) returnTxt = "-" + returnTxt;
 	return returnTxt;
-}
+};
+
+function resetGamerRoleTimer(gamerRole) {
+	gamerRole.setMentionable(true, "It's been 20 minutes!");
+	data.lastGamerMention = null;
+	saveDataFile();
+};
 
 /** ───── MESSAGE PARSER ───── **/
 
@@ -90,6 +106,19 @@ client.on('message', message => {
 	}
 	else if (message.content.toLowerCase().startsWith("bad bot")) {
 		message.channel.send(":(");
+	}
+	
+	if (message.mentions.roles.exists("name", "Gamer") && message.guild && message.guild.available) {
+		let gamerRole = message.guild.roles.find("name", "Gamer");
+		if (gamerRole) {
+			gamerRole.setMentionable(false, "Timeout on mentioning Gamer role");
+			data.lastGamerMention = Date.now();
+			saveDataFile();
+			client.setTimeout(resetGamerRoleTimer, 1200000, gamerRole);
+		}
+		else {
+			console.warn("Couldn't find Gamer role in guild " + message.guild);
+		}
 	}
 });
 
@@ -398,6 +427,7 @@ function startGameSession(message, options) {
 	// Sends confirmation message and stuff once all channels have been created.
 	function finishSessionCreation() {
 		if (newSession.channelIDs.voiceRed && newSession.channelIDs.voiceBlue && newSession.channelIDs.voiceGeneral && newSession.channelIDs.text && newSession.channelIDs.category && newSession.roleId) {
+			console.log("Game category calculatedPosition is now " + message.guild.channels.get(newSession.channelIDs.category).calculatedPosition);
 			
 			// Add role to game creator
 			message.member.addRole(newSession.roleId, message.author.username + " created game #" + newSession.id).catch(console.error);
@@ -1306,9 +1336,9 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 		new CommandArgument("literal", "at", 0, null,
 			new CommandArgument("date", "date and time", 0, null,
 				new CommandArgument("text", "message", 0, function(message, inputs) {
-					let timeInMs = inputs["date and time"] - Date.now()
+					let timeInMs = inputs["date and time"] - Date.now();
 					if (timeInMs < 0) {
-						return new CommandResult(false, "You cannot be reminded in the past!")
+						return new CommandResult(false, "You cannot be reminded in the past!");
 					}
 					if (timeInMs >= 2147483648) {
 						return new CommandResult(false, "That's way too far into the future! Please keep it under 25 days from now.");
