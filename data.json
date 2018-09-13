@@ -30,7 +30,7 @@
             "serverName": "mojangfixyourgame.aternos.me",
             "serverVersion": "1.12.2",
             "gameName": "Smash Swap",
-			"botVersion": "0.4.0"
+            "botVersion": "0.4.0"
         },
         {
             "id": 1,
@@ -49,7 +49,7 @@
             "serverName": "149.202.70.172:41099",
             "serverVersion": "1.12.2",
             "gameName": "Entrapment",
-			"botVersion": "0.4.3_dev"
+            "botVersion": "0.4.3_dev"
         },
         {
             "id": 2,
@@ -68,7 +68,7 @@
             "serverName": "JochCoolGames.serv.nu",
             "serverVersion": "1.12.2",
             "gameName": "Imperium",
-			"botVersion": "0.4.3_dev"
+            "botVersion": "0.4.3_dev"
         },
         {
             "id": 3,
@@ -92,5 +92,6 @@
             "botVersion": "0.5.0"
         }
     ],
-    "noGameMessageId": null
+    "noGameMessageId": null,
+    "lastGamerMention": null
 }
