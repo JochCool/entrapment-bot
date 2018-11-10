@@ -705,7 +705,7 @@ CommandArgument.prototype.isInputAllowed = function(command) {
 		if (thisInputEnd < 0) {
 			throw new CommandResult(false, "Please close your string!");
 		}
-		input = str.slice(1, thisInputEnd-1);
+		input = input.slice(1, thisInputEnd-1);
 	}
 	
 	// Spaces
