@@ -40,7 +40,7 @@ client.on('ready', () => {
 		if (guild.available) {
 			let botFeedChannel = guild.channels.find('name', "bot-feed");
 			if (botFeedChannel) {
-				botFeedChannel.send("I'm online! Version: " + botVersion);
+				botFeedChannel.send("I'm online! Version: " + botVersion).catch(console.error);
 			}
 			else {
 				console.warn("Couldn't find channel bot-feed of guild " + guild.name + " (ID: " + guild.id + ")")
@@ -56,9 +56,12 @@ client.on('ready', () => {
 				}
 			}
 		}
+		else {
+			console.log("Guild " + guild.name + " is unavailable.");
+		}
 	});
 	
-	client.user.setActivity("you", {type: "LISTENING"});
+	client.user.setActivity("you", {type: "LISTENING"}).catch(console.error);
 });
 
 client.on('disconnected', function() {
@@ -81,7 +84,7 @@ Number.prototype.getStringWithPrecedingZeroes = function(num) {
 };
 
 function resetGamerRoleTimer(gamerRole) {
-	gamerRole.setMentionable(true, "It's been 20 minutes!");
+	gamerRole.setMentionable(true, "It's been 20 minutes!").catch(console.error);
 	data.lastGamerMention = null;
 	saveDataFile();
 };
@@ -102,16 +105,16 @@ client.on('message', message => {
 	}
 	
 	else if (message.content.toLowerCase().startsWith("good bot")) {
-		message.channel.send("Thank you!");
+		message.channel.send("Thank you!").catch(console.error);
 	}
 	else if (message.content.toLowerCase().startsWith("bad bot")) {
-		message.channel.send(":(");
+		message.channel.send(":(").catch(console.error);
 	}
 	
 	if (message.mentions.roles.exists("name", "Gamer") && message.guild && message.guild.available) {
 		let gamerRole = message.guild.roles.find("name", "Gamer");
 		if (gamerRole) {
-			gamerRole.setMentionable(false, "Timeout on mentioning Gamer role");
+			gamerRole.setMentionable(false, "Timeout on mentioning Gamer role").catch(console.error);
 			data.lastGamerMention = Date.now();
 			saveDataFile();
 			client.setTimeout(resetGamerRoleTimer, 1200000, gamerRole);
@@ -486,9 +489,9 @@ function startGameSession(message, options) {
 							noGameMessage.delete().catch(console.error);
 						},
 						err => {
-							console.error("Couldn't find no game message in " + gameAnnouncementChannel);
+							console.error("Couldn't find no game message in #" + gameAnnouncementChannel.name + " (message ID: " + data.noGameMessageId + ")");
 						}
-					);
+					).catch(console.error);
 					data.noGameMessageId = null;
 				}
 				
@@ -623,12 +626,12 @@ function changeGameSession(message, inputs, userOpLevel) {
 		if (announcementChannel) {
 			announcementChannel.fetchMessage(game.announcementMessageId).then(
 				announcementMessage => {
-					announcementMessage.edit("**Game #" + game.id + ": " + game.gameName + "**\nStarted by " + game.creatorUserName + "\n" + game.serverLocationMessage + "\nReact with " + message.guild.emojis.find("name", "EntrapmentNewGame") + " to join!").catch(console.error);
+					announcementMessage.edit("**Game #" + game.id + ": " + game.gameName + "**\nStarted by " + game.creatorUserName + "\n" + game.serverLocationMessage + "\nReact with " + message.guild.emojis.find("name", "EntrapmentNewGame") + " to join!").then(() => {console.log("Updated announcement message")}).catch(console.error);
 				},
 				err => {
 					console.error("Couldn't find announcement message in " + announcementChannel + ": " + err);
 				}
-			);
+			).catch(console.error);
 		}
 		else {
 			console.error("Couldn't find #games channel while updating game " + game.id);
