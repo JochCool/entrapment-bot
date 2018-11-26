@@ -436,20 +436,7 @@ function startGameSession(message, options) {
 			message.member.addRole(newSession.roleId, message.author.username + " created game #" + newSession.id).catch(console.error);
 			
 			// Create & send welcome message
-			if (newSession.serverType == "server") {
-				if (newSession.serverName == "unknown") {
-					newSession.serverLocationMessage = "Server IP is unknown.";
-				}
-				else {
-					newSession.serverLocationMessage = "Server address: `" + newSession.serverName + "` (Minecraft version: " + newSession.serverVersion + ")";
-				}
-			}
-			else if (newSession.serverType == "realm") {
-				newSession.serverLocationMessage = "Realm owner: " + newSession.serverName;
-			}
-			else {
-				newSession.serverLocationMessage = "The server where the game is going to be played is unknown.";
-			}
+			updateLocationMessage(newSession)
 			let gameTextChannel = message.guild.channels.get(newSession.channelIDs.text);
 			gameTextChannel.send("A new game of " + newSession.gameName + " has been created by " + message.author + ".\n" + newSession.serverLocationMessage + "\nUse `" + prefix + "game setserver` to change where the game is going to be played.\nUse `" + prefix + "game stop` to stop this game.");
 			gameTextChannel.send("Anyone can leave this game with the command `" + prefix + "game leave`.");
@@ -569,6 +556,24 @@ function findGameSession(channel) {
 	return null;
 };
 
+// Updates the string explaining where the game is played
+function updateLocationMessage(game) {
+	if (game.serverType == "server") {
+		if (game.serverName == "unknown") {
+			game.serverLocationMessage = "Server IP is unknown.";
+		}
+		else {
+			game.serverLocationMessage = "Server address: `" + game.serverName + "` (Minecraft version: " + game.serverVersion + ")";
+		}
+	}
+	else if (game.serverType == "realm") {
+		game.serverLocationMessage = "Realm owner: " + game.serverName;
+	}
+	else {
+		game.serverLocationMessage = "The server where the game is going to be played is unknown.";
+	}
+};
+
 // `!game setserver` and `!game setname` commands
 function changeGameSession(message, inputs, userOpLevel) {
 	
@@ -615,12 +620,15 @@ function changeGameSession(message, inputs, userOpLevel) {
 	
 	// Save & return
 	if (somethingChanged) {
+		updateLocationMessage(game);
+		
 		saveDataFile(err => {
 			if (err) {
 				console.error(err);
 				message.channel.send("Something went wrong while saving your game. Please contact a moderator.").catch(console.error);
 			}
 		});
+		
 		// Update announcement message
 		let announcementChannel = message.guild.channels.find("name", "games")
 		if (announcementChannel) {
