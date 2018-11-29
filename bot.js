@@ -47,6 +47,7 @@ client.on('ready', () => {
 					"noGameMessageId": null,
 					"lastGamerMention": null,
 				};
+				saveDataFile();
 				log("Created data for new guild '" + guild.name + "' (ID: " + guild.id + ")");
 			}
 			
