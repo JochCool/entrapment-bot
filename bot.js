@@ -44,6 +44,7 @@ client.on('ready', () => {
 				data.guilds[guild.id] = {
 					"emojinames": {},
 					"gamesessions": [],
+					"nextGameSessionId": 0,
 					"noGameMessageId": null,
 					"lastGamerMention": null,
 				};
@@ -84,7 +85,7 @@ client.on('disconnected', function() {
 	process.exit();
 });
 
-client.on('error', function(error) {
+client.on('error', function() {
 	log("WebSocket error");
 });
 
@@ -182,7 +183,7 @@ function executeCommand(message, command) {
 				else if (message.member.roles.exists("name", "Mod")) {
 					userOpLevel = 3;
 				}
-				else if (message.member.roles.exists("name", "Active Player")) {
+				else if (message.member.roles.exists("name", "Gamer")) {
 					userOpLevel = 2;
 				}
 			}
@@ -275,7 +276,7 @@ function executeCommand(message, command) {
 
 function startGameSession(message, options) {
 	let newSession = {
-		"id": data.guilds[message.guild.id].gamesessions.length,
+		"id": data.guilds[message.guild.id].nextGameSessionId++,
 		"concluded": false,
 		"channelIDs": {},
 		"creatorId": message.author.id,
@@ -679,7 +680,7 @@ There are various types of arguments:
 - "literal" (you have to copy the name exactly)
 - "text" (you can fill in whatever text you want)
 - "number" (you have to fill in a valid number)
-- "date" (you have to fill in a valid Date, preferrable using ISO 8601 format)
+- "date" (you have to fill in a valid Date, preferrably using ISO 8601 format)
 - "root" (not an argument, this is the first node in the tree)
 
 Each argument also has an op level, which is a number specifying the requirement to run this command.
@@ -709,7 +710,6 @@ function CommandArgument(type, name, oplevel, runFunction, child) {
 // Returns whether or not the first input in the command string is a valid input for this argument
 CommandArgument.prototype.isInputAllowed = function(command) {
 	if (command == "") {
-		log("command is \"\" :(");
 		return false;
 	}
 	input = command;
