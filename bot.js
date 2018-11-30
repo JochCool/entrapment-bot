@@ -485,8 +485,9 @@ function startGameSession(message, options) {
 			if (gameAnnouncementChannel) {
 				
 				// Remove default message
+				log("Trying to find noGameMesage with id " + data.guilds[newSession.guildId].noGameMessageId);
 				if (data.guilds[newSession.guildId].noGameMessageId) {
-					message.channel.fetchMessage(data.guilds[newSession.guildId].noGameMessageId).then(
+					gameAnnouncementChannel.fetchMessage(data.guilds[newSession.guildId].noGameMessageId).then(
 						noGameMessage => {
 							noGameMessage.delete().catch(log);
 						},
