@@ -552,7 +552,7 @@ function startGameSession(message, options) {
 };
 
 function saveGameSession(newSession, errorChannel) {
-	data.guilds[newSesion.guildId].gamesessions.push(newSession);
+	data.guilds[newSession.guildId].gamesessions.push(newSession);
 	saveDataFile(err => {
 		if (err) {
 			log(err);
