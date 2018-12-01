@@ -21,6 +21,7 @@ if (properties.version != botVersion) {
 }
 
 function saveDataFile(callback) {
+	log("saving data file");
 	if (!callback) {
 		callback = err => { if (err) { log(err); } };
 	}
@@ -492,7 +493,7 @@ function startGameSession(message, options) {
 							noGameMessage.delete().catch(log);
 						},
 						err => {
-							log("Couldn't find no game message in #" + gameAnnouncementChannel.name + " (message ID: " + data.guilds[newSession.guildId].noGameMessageId + ")");
+							log("Couldn't find no game message in #" + gameAnnouncementChannel.name);
 						}
 					).catch(log);
 					data.guilds[newSession.guildId].noGameMessageId = null;
@@ -1374,6 +1375,19 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 	),
 	new CommandArgument("literal", "ping", 0, function(message) {
 		return new CommandResult(true, "pong (" + client.ping + "ms)");
+	}),
+	new CommandArgument("literal", "savedata", 3, function(message) {
+		saveDataFile(err => {
+			if (err) {
+				log(err);
+				message.react('❌').catch(log);
+				message.channel.send("Error occurred while saving the data.").catch(log);
+			}
+			else {
+				message.react('✅').catch(log);
+				message.channel.send("Saved!");
+			}
+		});
 	}),
 	new CommandArgument("literal", "stop", 3, function(message) {
 		log("Stopping!");
