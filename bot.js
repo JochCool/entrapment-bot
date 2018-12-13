@@ -1012,7 +1012,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 		),
 		new CommandArgument("literal", "add", 3, null,
 			new CommandArgument("text", "userId", 3, null,
-				new CommandArgument("text", "emojiName", 3, null, function(message, inputs) {
+				new CommandArgument("text", "emojiName", 3, function(message, inputs) {
 					let oldEmojiName = data.guilds[message.guild.id].emojinames[inputs.userId];
 					if (typeof oldEmojiName == "string") {
 						return new CommandResult(false, "This person already has an emoji. It's called " + oldEmojiName + ".");
