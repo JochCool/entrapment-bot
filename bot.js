@@ -90,6 +90,22 @@ client.on('error', function() {
 	log("WebSocket error");
 });
 
+client.on('guildCreate', guild => {
+	log("Joined a new guild! It's " & guild.name);
+	
+	if (!data.guilds[guild.id]) {
+		data.guilds[guild.id] = {
+			"emojinames": {},
+			"gamesessions": [],
+			"nextGameSessionId": 0,
+			"noGameMessageId": null,
+			"lastGamerMention": null,
+		};
+		saveDataFile();
+		log("Created data for new guild '" + guild.name + "' (ID: " + guild.id + ")");
+	}
+});
+
 Number.prototype.getStringWithPrecedingZeroes = function(num) {
 	let returnTxt = Math.floor(Math.abs(this)).toString();
 	while (returnTxt.length < num) {
