@@ -1,7 +1,10 @@
 const botVersion = "0.5.4";
 
 function log(message) {
-	console.log("[" + new Date().toLocaleTimeString() + "] " + message);
+	if (message instanceof Error) {
+		message = message.stack;
+	}
+	console.log("[" + new Date().toLocaleTimeString() + "]" + message);
 };
 
 log("Starting Entrapment Bot version " + botVersion);
