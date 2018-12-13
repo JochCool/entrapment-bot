@@ -1,4 +1,4 @@
-const botVersion = "0.5.3";
+const botVersion = "0.5.4";
 
 function log(message) {
 	console.log("[" + new Date().toLocaleTimeString() + "] " + message);
@@ -963,7 +963,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 				
 				error => {
 					log("Error while uploading the emoji of " + message.username + ": " + error);
-					let result = new CommandResult(false, "Failed to update your emoji. A likely cause is that your profile picture is too powerful. Please contact a moderator for support.");
+					let result = new CommandResult(false, "Failed to update your emoji. A likely cause is that your profile picture is too large. Please contact a moderator for support.");
 					result.evaluate(message);
 				}
 			);
@@ -1007,8 +1007,48 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 						result.evaluate(message);
 					}
 				);
-				return new CommandResult(null, "Changing the name of your emoji...");
+				return "Changing the name of your emoji...";
 			})
+		),
+		new CommandArgument("literal", "add", 3, null,
+			new CommandArgument("text", "userId", 3, null,
+				new CommandArgument("text", "emojiName", 3, null, function(message, inputs) {
+					let oldEmojiName = data.guilds[message.guild.id].emojinames[inputs.userId];
+					if (typeof oldEmojiName == "string") {
+						return new CommandResult(false, "This person already has an emoji. It's called " + oldEmojiName + ".");
+					}
+					if (message.guild.emojis.find('name', inputs.newName)) {
+						return new CommandResult(false, "There is already an emoji with that name!");
+					}
+					let member = message.guild.members.get(inputs.userId);
+					if (!member) {
+						return new CommandResult(false, "The member with that id does not appear to be on this Discord server.");
+					}
+					
+					message.guild.createEmoji(member.user.displayAvatarURL, inputs.emojiName, [], message.author.username + " created new emoji for " + member.user.username).then(
+						emoji => {
+							data.guilds[message.guild.id].emojinames[inputs.userId] = inputs.emojiName;
+							saveDataFile(err => {
+								if (err) {
+									log(err);
+									message.channel.send("Something went wrong while saving the bot's data. Please contact a moderator.").catch(log);
+								}
+							});
+							let result = new CommandArgument(true, "The emoji has been created!");
+							result.evaluate(message);
+							message.react(emoji).catch(log);
+						},
+						
+						err => {
+							log(err);
+							let result = new CommandArgument(false, "Failed to upload the emoji. A likely cause is that the profile picture is too large. Please contact a moderator for support.");
+							result.evaluate(message);
+						}
+					);
+					
+					return "Creating emoji...";
+				})
+			)
 		)
 	]),
 	new CommandArgument("literal", "game", 1, null, [
@@ -1045,9 +1085,16 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 				}
 			});
 			if (returnTxt == "") {
-				return "There are not games currently running. Type `" + prefix + "game start` to start a game.";
+				return "There are no games currently running. Type `" + prefix + "game start` to start a game.";
 			}
 			return "The following games are currently running:" + returnTxt;
+		}),
+		new CommandArgument("literal", "info", 1, function(message) {
+			let game = findGameSession(message.channel);
+			if (!game) {
+				return new CommandResult(false, "This command can only be executed in the text channel of a game.");
+			}
+			return "**Game #" + game.id + "\n• Name: " + game.gameName + "\n• Creator: " + game.creatorUserName + "\n• " + game.serverLocationMessage;
 		}),
 		new CommandArgument("literal", "leave", 1, function(message) {
 			let game = findGameSession(message.channel);
