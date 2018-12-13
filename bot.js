@@ -1020,7 +1020,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 					if (typeof oldEmojiName == "string") {
 						return new CommandResult(false, "This person already has an emoji. It's called " + oldEmojiName + ".");
 					}
-					if (message.guild.emojis.find('name', inputs.newName)) {
+					if (message.guild.emojis.find('name', inputs.emojiName)) {
 						return new CommandResult(false, "There is already an emoji with that name!");
 					}
 					let member = message.guild.members.get(inputs.userId);
@@ -1037,14 +1037,14 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 									message.channel.send("Something went wrong while saving the bot's data. Please contact a moderator.").catch(log);
 								}
 							});
-							let result = new CommandArgument(true, "The emoji has been created!");
+							let result = new CommandResult(true, "The emoji has been created!");
 							result.evaluate(message);
 							message.react(emoji).catch(log);
 						},
 						
 						err => {
 							log(err);
-							let result = new CommandArgument(false, "Failed to upload the emoji. A likely cause is that the profile picture is too large. Please contact a moderator for support.");
+							let result = new CommandResult(false, "Failed to upload the emoji. A likely cause is that the profile picture is too large. Please contact a moderator for support.");
 							result.evaluate(message);
 						}
 					);
