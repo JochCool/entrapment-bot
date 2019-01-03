@@ -4,7 +4,7 @@ function log(message) {
 	if (message instanceof Error) {
 		message = message.stack;
 	}
-	console.log("[" + new Date().toLocaleTimeString() + "]" + message);
+	console.log("[" + new Date().toLocaleTimeString() + "] " + message);
 };
 
 log("Starting Entrapment Bot version " + botVersion);
@@ -39,17 +39,22 @@ client.login(auth.token).catch(log);
 client.on('ready', () => {
 	log('Connected!');
 	
-	// Say it in bot feed & check Gamer role timeout
+	// Check guild data
 	client.guilds.array().forEach(guild => {
 		if (guild.available) {
 			
 			// New guild?
 			if (!data.guilds[guild.id]) {
 				data.guilds[guild.id] = {
-					"emojinames": {},
+					
+					// games
 					"gamesessions": [],
 					"nextGameSessionId": 0,
 					"noGameMessageId": null,
+					
+					// emojis
+					"emojinames": {}
+					
 					"lastGamerMention": null,
 				};
 				saveDataFile();
@@ -77,9 +82,26 @@ client.on('ready', () => {
 			}
 		}
 		else {
-			log("Guild " + guild.name + " is unavailable.");
+			log("Guild \"" + guild.name + "\" is unavailable.");
 		}
 	});
+	
+	// Check schedules
+	for (var i = 0; i < data.schedules.length; i++) {
+		let schedule = data.schedules[i];
+		let timeleft = schedule.at - Date.now();
+		if (timeleft <= 0) {
+			executeSchedule(schedule);
+			data.schedules.splice(i--, 1);
+			log("A schedule was executed " + (-timeleft) + "ms too late.");
+		}
+		else {
+			client.setTimeout(i => {
+				executeSchedule(schedule);
+				data.schedules.splice(i, 1);
+			}, timeleft, i);
+		}
+	}
 	
 	client.user.setActivity("you", {type: "LISTENING"}).catch(log);
 });
@@ -94,7 +116,7 @@ client.on('error', function() {
 });
 
 client.on('guildCreate', guild => {
-	log("Joined a new guild! It's " & guild.name);
+	log("Joined a new guild! It's called \"" + guild.name + "\"");
 	
 	if (!data.guilds[guild.id]) {
 		data.guilds[guild.id] = {
@@ -124,6 +146,10 @@ function resetGamerRoleTimer(gamerRole) {
 	saveDataFile();
 };
 
+function executeSchedule(schedule) {
+	
+};
+
 /** ───── MESSAGE PARSER ───── **/
 
 const prefix = '!';
@@ -150,7 +176,11 @@ client.on('message', message => {
 		let gamerRole = message.guild.roles.find("name", "Gamer");
 		if (gamerRole) {
 			gamerRole.setMentionable(false, "Timeout on mentioning Gamer role").catch(log);
-			data.guilds[message.guild.id].lastGamerMention = Date.now();
+			data.guilds[message.guild.id].schedules.push({
+				"at": Date.now() + 1200000,
+				"action": "resetGamerRole"
+			});
+			//data.guilds[message.guild.id].lastGamerMention = Date.now();
 			saveDataFile();
 			client.setTimeout(resetGamerRoleTimer, 1200000, gamerRole);
 		}
