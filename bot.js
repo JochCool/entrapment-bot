@@ -1473,7 +1473,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 						return new CommandResult(false, "That's far too long! Please keep it under 25 days.");
 					}
 					
-					createTimeout({
+					createSchedule({
 						"type": "remind",
 						"guildId": message.guild.id,
 						"channelId": message.channel.id,
@@ -1493,7 +1493,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 					if (timeInMs >= 2147483648) {
 						return new CommandResult(false, "That's way too far into the future! Please keep it under 25 days from now.");
 					}
-					createTimeout({
+					createSchedule({
 						"type": "remind",
 						"guildId": message.guild.id,
 						"channelId": message.channel.id,
