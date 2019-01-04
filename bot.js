@@ -1474,12 +1474,12 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 					}
 					
 					createSchedule({
-						"type": "remind",
+						"action": "remind",
 						"guildId": message.guild.id,
 						"channelId": message.channel.id,
 						"text": message.author + ", a reminder: " + inputs.message
 					}, timeInMs);
-					return new CommandResult(true, "You will be reminded in " + timeInMs/1000 + " seconds.\nNote: if the bot goes offline before you are reminded, you won't be reminded.");
+					return new CommandResult(true, "You will be reminded in " + timeInMs/1000 + " seconds.");
 				})
 			)
 		),
@@ -1494,12 +1494,12 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 						return new CommandResult(false, "That's way too far into the future! Please keep it under 25 days from now.");
 					}
 					createSchedule({
-						"type": "remind",
+						"action": "remind",
 						"guildId": message.guild.id,
 						"channelId": message.channel.id,
 						"text": message.author + ", a reminder: " + inputs.message
 					}, timeInMs);
-					return new CommandResult(true, "You will be reminded in " + timeInMs/1000 + " seconds.\nNote: if the bot goes offline before you are reminded, you won't be reminded.");
+					return new CommandResult(true, "You will be reminded in " + timeInMs/1000 + " seconds.");
 				})
 			)
 		)
