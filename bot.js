@@ -1,5 +1,6 @@
 const botVersion = "0.5.4";
 
+// Replacement of console.log
 function log(message) {
 	if (message instanceof Error) {
 		message = message.stack;
@@ -10,8 +11,9 @@ function log(message) {
 log("Starting Entrapment Bot version " + botVersion);
 
 /** ───── BECOME A DISCORD BOT ───── **/
+// This section is to load the modules, initialize the bot and create some general functions
 
-// Require and read some things
+// Load everything
 const Discord = require('discord.js');
 const auth = require('./auth.json');
 const properties = require('./package.json');
@@ -23,6 +25,7 @@ if (properties.version != botVersion) {
 	log("Inconsistency between package version (" + properties.version + ") and code version (" + botVersion + ")");
 }
 
+// Gets called every time the data object changes, to .
 function saveDataFile(callback) {
 	log("saving data file");
 	if (!callback) {
@@ -54,8 +57,6 @@ client.on('ready', () => {
 					
 					// emojis
 					"emojinames": {}
-					
-					"lastGamerMention": null,
 				};
 				saveDataFile();
 				log("Created data for new guild '" + guild.name + "' (ID: " + guild.id + ")");
@@ -68,17 +69,6 @@ client.on('ready', () => {
 			}
 			else {
 				log("Couldn't find channel #bot-feed of guild " + guild.name + " (ID: " + guild.id + ")")
-			}
-			
-			// Check if lastGamerMention has to be reset in this guild
-			if (typeof data.guilds[guild.id].lastGamerMention == "number") {
-				let gamerRoleTimeout = 1200000 - (Date.now() - data.guilds[guild.id].lastGamerMention);
-				if (gamerRoleTimeout > 0) {
-					client.setTimeout(resetGamerRoleTimer, gamerRoleTimeout, guild.roles.find("name", "Gamer"));
-				}
-				else {
-					resetGamerRoleTimer(guild.roles.find("name", "Gamer"));
-				}
 			}
 		}
 		else {
@@ -103,7 +93,7 @@ client.on('ready', () => {
 		}
 	}
 	
-	client.user.setActivity("you", {type: "LISTENING"}).catch(log);
+	client.user.setActivity("you", {"type": "LISTENING"}).catch(log);
 });
 
 client.on('disconnected', function() {
@@ -118,6 +108,7 @@ client.on('error', function() {
 client.on('guildCreate', guild => {
 	log("Joined a new guild! It's called \"" + guild.name + "\"");
 	
+	// create data for new guild
 	if (!data.guilds[guild.id]) {
 		data.guilds[guild.id] = {
 			"emojinames": {},
@@ -131,6 +122,7 @@ client.on('guildCreate', guild => {
 	}
 });
 
+// eg: (42).getStringWithPrecedingZeroes(5) gives "00042"
 Number.prototype.getStringWithPrecedingZeroes = function(num) {
 	let returnTxt = Math.floor(Math.abs(this)).toString();
 	while (returnTxt.length < num) {
@@ -140,14 +132,60 @@ Number.prototype.getStringWithPrecedingZeroes = function(num) {
 	return returnTxt;
 };
 
-function resetGamerRoleTimer(gamerRole) {
-	gamerRole.setMentionable(true, "It's been 20 minutes!").catch(log);
-	data.guilds[gamerRole.guild.id].lastGamerMention = null;
+/* Schedule format:
+├ at (Date): when the schedule needs to be executed
+├ handled (Boolean): true if the schedule has already been executed, to prevent double executions
+├ action (String): identifies what this schedule is for, either "resetGamerRole" or "remind"
+├ guildId (String): identifies which guild this schedule affects
+├ channelId (String): "remind" action only; specifies in which guild the message should be sent
+└ text (String): "remind" action only; specifies what needs to be sent
+*/
+
+function createSchedule(schedule, timeInMs) {
+	schedule.at = timeInMs + Date.now();
+	client.setTimeout(i => {
+		executeSchedule(schedule);
+		data.schedules.splice(i, 1);
+		saveDataFile();
+	}, timeInMs, data.schedules.length);
+	data.schedules.push(schedule);
 	saveDataFile();
 };
 
 function executeSchedule(schedule) {
+	if (schedule.handled) {
+		log("This schedule has already been handled!");
+		return;
+	}
+	schedule.handled = true;
 	
+	let guild = client.guilds.get(schedule.guildId);
+	if (!guild) {
+		log("Couln't find guild while handling a schedule.");
+	}
+	
+	switch (schedule.action) {
+		case "resetGamerRole":
+			let gamerRole = guild.roles.find("name", "Gamer");
+			if (!gamerRole) {
+				log("Couldn't find gamer role while handling a schedule to reset gamer role.");
+				break;
+			}
+			gamerRole.setMentionable(true, "Timeout is over").catch(log);
+			break;
+		
+		case "remind":
+			let channel = guild.channels.get(schedule.channelId);
+			if (!channel) {
+				log("Couldn't find channel while handling a schedule to remind someone.");
+				break;
+			}
+			channel.send(schedule.text);
+			break;
+		
+		default:
+			log("schedule action \"" + schedule.action + "\" is not a recognised type");
+	}
 };
 
 /** ───── MESSAGE PARSER ───── **/
@@ -1171,6 +1209,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			
 			let announcementChannel = message.guild.channels.find("name", "games")
 			if (announcementChannel) {
+				
 				// Remove announcement message
 				announcementChannel.fetchMessage(game.announcementMessageId).then(
 					announcementMessage => {
@@ -1369,6 +1408,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			new CommandArgument("text", "time", 0, null,
 				new CommandArgument("text", "message", 0, function(message, inputs) {
 					
+					// Split the input into letters and numbers (e.g. "1min30s" -> [1, "min", 30, "s"])
 					let timeInput = [];
 					for (var i = 0; i < inputs.time.length; i++) {
 						if (isNaN(inputs.time[i])) {
@@ -1433,8 +1473,11 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 						return new CommandResult(false, "That's far too long! Please keep it under 25 days.");
 					}
 					
-					client.setTimeout(() => {
-						message.channel.send(message.author + ", a reminder: " + inputs.message);
+					createTimeout({
+						"type": "remind",
+						"guildId": message.guild.id,
+						"channelId": message.channel.id,
+						"text": message.author + ", a reminder: " + inputs.message
 					}, timeInMs);
 					return new CommandResult(true, "You will be reminded in " + timeInMs/1000 + " seconds.\nNote: if the bot goes offline before you are reminded, you won't be reminded.");
 				})
@@ -1450,8 +1493,11 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 					if (timeInMs >= 2147483648) {
 						return new CommandResult(false, "That's way too far into the future! Please keep it under 25 days from now.");
 					}
-					client.setTimeout(() => {
-						message.channel.send(message.author + ", a reminder: " + inputs.message);
+					createTimeout({
+						"type": "remind",
+						"guildId": message.guild.id,
+						"channelId": message.channel.id,
+						"text": message.author + ", a reminder: " + inputs.message
 					}, timeInMs);
 					return new CommandResult(true, "You will be reminded in " + timeInMs/1000 + " seconds.\nNote: if the bot goes offline before you are reminded, you won't be reminded.");
 				})
