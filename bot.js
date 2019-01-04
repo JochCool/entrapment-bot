@@ -214,13 +214,10 @@ client.on('message', message => {
 		let gamerRole = message.guild.roles.find("name", "Gamer");
 		if (gamerRole) {
 			gamerRole.setMentionable(false, "Timeout on mentioning Gamer role").catch(log);
-			data.guilds[message.guild.id].schedules.push({
-				"at": Date.now() + 1200000,
+			createSchedule({
 				"action": "resetGamerRole"
-			});
-			//data.guilds[message.guild.id].lastGamerMention = Date.now();
-			saveDataFile();
-			client.setTimeout(resetGamerRoleTimer, 1200000, gamerRole);
+				"guildId": message.guild.id
+			}, 1200000);
 		}
 		else {
 			log("Couldn't find Gamer role in guild " + message.guild);
