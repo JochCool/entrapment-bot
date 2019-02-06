@@ -16,13 +16,13 @@ log("Starting Entrapment Bot version " + botVersion);
 // Load everything
 const Discord = require('discord.js');
 const auth = require('./auth.json');
-const properties = require('./package.json');
+const package = require('./package.json');
 const fs = require('fs');
 var data = require('./data.json');
 
 log("All modules loaded");
-if (properties.version != botVersion) {
-	log("Inconsistency between package version (" + properties.version + ") and code version (" + botVersion + ")");
+if (package.version != botVersion) {
+	log("Inconsistency between package version (" + package.version + ") and code version (" + botVersion + ")");
 }
 
 // Gets called every time the data object changes, to .
@@ -106,7 +106,7 @@ client.on('error', function() {
 });
 
 client.on('guildCreate', guild => {
-	log("Joined a new guild! It's called \"" + guild.name + "\"");
+	log("Joined a new guild! It's called \"" + guild.name + "\" (id: " + guild.id + ")");
 	
 	// create data for new guild
 	if (!data.guilds[guild.id]) {
@@ -189,6 +189,7 @@ function executeSchedule(schedule) {
 };
 
 /** ───── MESSAGE PARSER ───── **/
+// This section is to evaluate you commands and reply to your messages
 
 const prefix = '!';
 
@@ -302,12 +303,10 @@ function executeCommand(message, command) {
 			}
 			
 			if (!inputAllowed) {
-				if (currentArgument == commands.child) {
-					throw new CommandResult(false, "Unknown command. Type `" + prefix + "help` for a list of commands");
-				}
-				else {
+				if (currentArgument != commands.child) {
 					throw new CommandResult(false, "Invalid argument: `" + input + "`. Expected `" + syntax + "`.");
 				}
+				return;
 			}
 			
 			// check permission
@@ -332,7 +331,7 @@ function executeCommand(message, command) {
 			// last input; run the command
 			if (thisInputEnd < 0 || command == "" || !currentArgument.child) {
 				if (!currentArgument.run) {
-					throw new CommandResult(false, "Missing argument: `" + currentArgument.getChildSyntax() + "`");
+					throw new CommandResult(false, "You're missing one or more required arguments: `" + currentArgument.getChildSyntax(true) + "`");
 				}
 				let commandResult = currentArgument.run(message, inputs, userOpLevel);
 				if (typeof commandResult == "object" && commandResult instanceof CommandResult) {
@@ -346,7 +345,7 @@ function executeCommand(message, command) {
 		}
 	}
 	catch (err) {
-		if (typeof err == "object" && err instanceof CommandResult) {
+		if (err instanceof CommandResult) {
 			err.evaluate(message);
 		}
 		else {
@@ -766,6 +765,7 @@ There are various types of arguments:
 - "literal" (you have to copy the name exactly)
 - "text" (you can fill in whatever text you want)
 - "number" (you have to fill in a valid number)
+- "integer" (you have to fill in a valid integer)
 - "date" (you have to fill in a valid Date, preferrably using ISO 8601 format)
 - "root" (not an argument, this is the first node in the tree)
 
@@ -791,6 +791,7 @@ function CommandArgument(type, name, oplevel, runFunction, child) {
 	this.oplevel = oplevel;
 	this.run = runFunction;
 	this.child = child;
+	this.hasChildren = this.child instanceof CommandArgument || Array.isArray(this.child) && this.child.length > 0;
 };
 
 // Returns whether or not the first input in the command string is a valid input for this argument
@@ -841,12 +842,15 @@ CommandArgument.prototype.isInputAllowed = function(command) {
 		}
 		return false;
 	}
-	if (this.type == "number") {
+	if (this.type == "number" || this.type == "integer") {
 		let num = Number(input);
 		if (isNaN(num)) {
 			return false;
 		}
 		input = Number(input);
+		if (this.type == "integer" && input % 1 != 0) {
+			return false;
+		}
 		return true;
 	}
 	if (this.type == "date") {
@@ -873,11 +877,13 @@ CommandArgument.prototype.isInputAllowed = function(command) {
 
 // Returns the syntax of this argument's child, properly formatted.
 CommandArgument.prototype.getChildSyntax = function(withChildren) {
-	if (typeof this.child != "object") {
+	if (!this.hasChildren) {
 		return "";
 	}
 	let syntax = "";
 	let childrenHaveChildren = false;
+	
+	// Multiple children: loop through them
 	if (Array.isArray(this.child)) {
 		syntax += "(";
 		for (var i = 0; i < this.child.length; i++) {
@@ -896,6 +902,8 @@ CommandArgument.prototype.getChildSyntax = function(withChildren) {
 		}
 		syntax += ")";
 	}
+	
+	// Single child
 	else {
 		if (this.child.type == "literal") {
 			syntax += this.child.name;
@@ -904,25 +912,30 @@ CommandArgument.prototype.getChildSyntax = function(withChildren) {
 			syntax += "<" + this.child.name + ">";
 		}
 	}
-	if (this.run) {
-		syntax = "[" + syntax + "]";
-	}
+	
+	// Append children's syntax
 	if (withChildren) {
 		if (Array.isArray(this.child)) {
 			if (childrenHaveChildren) {
 				syntax += " ...";
 			}
 		}
-		else {
+		else if (this.child.hasChildren) {
 			syntax += " " + this.child.getChildSyntax(true);
 		}
 	}
-	return syntax.trim();
+	
+	// Optional children
+	if (this.run) {
+		syntax = "[" + syntax + "]";
+	}
+	
+	return syntax;
 };
 
 // Returns an array of all possible child syntaxes (including the children of the children)
 CommandArgument.prototype.getAllChildSyntaxes = function() {
-	if (!this.child) {
+	if (!this.hasChildren) {
 		return [""];
 	}
 	let syntaxes = [];
@@ -959,7 +972,7 @@ CommandArgument.prototype.getAllChildSyntaxes = function() {
 
 // The big commands object
 const commands = new CommandArgument("root", prefix, 0, null, [
-	new CommandArgument("literal", "help", 0, function(message, inputs, userOpLevel) {
+	new CommandArgument("literal", "help", 0, (message, inputs, userOpLevel) => {
 		let returnTxt = "";
 		for (var i = 0; i < commands.child.length; i++) {
 			if (userOpLevel >= commands.child[i].oplevel) {
@@ -971,22 +984,22 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 		}
 		return new CommandResult(true, "You can execute the following commands:" + returnTxt);
 	},
-		new CommandArgument("text", "command", 0, function(message, inputs, userOpLevel) {
+		new CommandArgument("text", "command", 0, (message, inputs, userOpLevel) => {
 			let cmd = commands.child.find(arg => arg.name == inputs.command);
-			if (cmd) {
-				if (userOpLevel < cmd.oplevel) {
-					return new CommandResult(false, "You do not have permission to use this command");
-				}
-				let returnTxt = "", syntaxes = cmd.getAllChildSyntaxes();
-				for (var s = 0; s < syntaxes.length; s++) {
-					returnTxt += "\n" + prefix + inputs.command + " " + syntaxes[s];
-				}
-				return new CommandResult(true, "Syntax:\n```" + returnTxt + "\n```");
+			if (!cmd) {
+				return new CommandResult(false, "The command `"+inputs.command+"` does not exist.");
 			}
-			return new CommandResult(false, "The command `"+inputs.command+"` does not exist.");
+			if (userOpLevel < cmd.oplevel) {
+				return new CommandResult(false, "You do not have permission to use this command");
+			}
+			let returnTxt = "", syntaxes = cmd.getAllChildSyntaxes();
+			for (var s = 0; s < syntaxes.length; s++) {
+				returnTxt += "\n" + prefix + inputs.command + " " + syntaxes[s];
+			}
+			return new CommandResult(true, "Syntax:\n```" + returnTxt + "\n```");
 		})
 	),
-	new CommandArgument("literal", "gamer", 1, function(message) {
+	new CommandArgument("literal", "gamer", 1, message => {
 		let roleGamer = message.guild.roles.find('name', "Gamer");
 		
 		if (message.member.roles.exists('name', "Gamer")) {
@@ -999,7 +1012,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 		}
 	}),
 	new CommandArgument("literal", "emoji", 1, null, [
-		new CommandArgument("literal", "update", 1, function(message) {
+		new CommandArgument("literal", "update", 1, message => {
 			if (typeof data.guilds[message.guild.id].emojinames[message.author.id] == "undefined") {
 				return new CommandResult(false, "You don't have an emoji yet! Play a game of Entrapment and ask a moderator to add your emoji as a reward for playing along.");
 			}
@@ -1038,7 +1051,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			return new CommandResult(null, "Updating your emoji...");
 		}),
 		new CommandArgument("literal", "setname", 1, null,
-			new CommandArgument("text", "newName", 1, function(message, inputs) {
+			new CommandArgument("text", "newName", 1, (message, inputs) => {
 				if (typeof data.guilds[message.guild.id].emojinames[message.author.id] == "undefined") {
 					return new CommandResult(false, "You don't have an emoji yet! Play a game of Entrapment and ask a moderator to add your emoji as a reward for playing along.");
 				}
@@ -1080,7 +1093,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 		),
 		new CommandArgument("literal", "add", 3, null,
 			new CommandArgument("text", "userId", 3, null,
-				new CommandArgument("text", "emojiName", 3, function(message, inputs) {
+				new CommandArgument("text", "emojiName", 3, (message, inputs) => {
 					let oldEmojiName = data.guilds[message.guild.id].emojinames[inputs.userId];
 					if (typeof oldEmojiName == "string") {
 						return new CommandResult(false, "This person already has an emoji. It's called " + oldEmojiName + ".");
@@ -1145,7 +1158,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 		new CommandArgument("literal", "setname", 1, null,
 			new CommandArgument("text", "new name", 1, changeGameSession)
 		),
-		new CommandArgument("literal", "list", 1, function(message) {
+		new CommandArgument("literal", "list", 1, message => {
 			let returnTxt = "";
 			data.guilds[message.guild.id].gamesessions.forEach(game => {
 				if (!game.concluded) {
@@ -1157,14 +1170,14 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			}
 			return "The following games are currently running:" + returnTxt;
 		}),
-		new CommandArgument("literal", "info", 1, function(message) {
+		new CommandArgument("literal", "info", 1, message => {
 			let game = findGameSession(message.channel);
 			if (!game) {
 				return new CommandResult(false, "This command can only be executed in the text channel of a game.");
 			}
 			return "**Game #" + game.id + "\n• Name: " + game.gameName + "\n• Creator: " + game.creatorUserName + "\n• " + game.serverLocationMessage;
 		}),
-		new CommandArgument("literal", "leave", 1, function(message) {
+		new CommandArgument("literal", "leave", 1, message => {
 			let game = findGameSession(message.channel);
 			if (!game) {
 				return new CommandResult(false, "This command can only be executed in the text channel of the game.");
@@ -1181,7 +1194,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 				}
 			);
 		}),
-		new CommandArgument("literal", "stop", 1, function(message, inputs, userOpLevel) {
+		new CommandArgument("literal", "stop", 1, (message, inputs, userOpLevel) => {
 			let game = findGameSession(message.channel);
 			if (!game) {
 				return new CommandResult(false, "Games can only be stopped in their text channels.");
@@ -1304,7 +1317,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			return "Stopping your game...";
 		})
 	]),
-	new CommandArgument("literal", "ip", 1, function(message) {
+	new CommandArgument("literal", "ip", 1, message => {
 		let game = findGameSession(message.channel);
 		if (!game) {
 			return new CommandArgument(false, "Your are not in a game!");
@@ -1324,7 +1337,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 		return "I don't know where this game is played.";
 	}),
 	new CommandArgument("literal", "team", 1, null, [
-		new CommandArgument("literal", "blue", 1, function(message) {
+		new CommandArgument("literal", "blue", 1, message => {
 			if (!findGameSession(message.channel)) {
 				return new CommandResult(false, "This command can only be executed in the text channel of a game.");
 			}
@@ -1346,7 +1359,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 				}
 			);
 		}),
-		new CommandArgument("literal", "red", 1, function(message) {
+		new CommandArgument("literal", "red", 1, message => {
 			if (!findGameSession(message.channel)) {
 				return new CommandResult(false, "This command can only be executed in the text channel of a game.");
 			}
@@ -1368,7 +1381,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 				}
 			);
 		}),
-		new CommandArgument("literal", "none", 1, function(message) {
+		new CommandArgument("literal", "none", 1, message => {
 			if (message.member.roles.exists("name", "Team Blue")) {
 				message.member.removeRole(message.guild.roles.find("name", "Team Blue"), "Player used `" + prefix + "team` command").then(
 					() => {
@@ -1403,7 +1416,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 	new CommandArgument("literal", "remindme", 0, null, [
 		new CommandArgument("literal", "in", 0, null,
 			new CommandArgument("text", "time", 0, null,
-				new CommandArgument("text", "message", 0, function(message, inputs) {
+				new CommandArgument("text", "message", 0, (message, inputs) => {
 					
 					// Split the input into letters and numbers (e.g. "1min30s" -> [1, "min", 30, "s"])
 					let timeInput = [];
@@ -1482,7 +1495,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 		),
 		new CommandArgument("literal", "at", 0, null,
 			new CommandArgument("date", "date and time", 0, null,
-				new CommandArgument("text", "message", 0, function(message, inputs) {
+				new CommandArgument("text", "message", 0, (message, inputs) => {
 					let timeInMs = inputs["date and time"] - Date.now();
 					if (timeInMs < 0) {
 						return new CommandResult(false, "You cannot be reminded in the past!");
@@ -1501,21 +1514,13 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			)
 		)
 	]),
-	new CommandArgument("literal", "random", 0, function(message) {
-		return Math.random().toString();
-	},
-		new CommandArgument("number", "min", 0, function(message, inputs) {
-			return (Math.random() * inputs.min).toString();
-		},
-			new CommandArgument("number", "max", 0, function(message, inputs)  {
-				return (Math.random() * (inputs.max - inputs.min) + inputs.min).toString();
-			})
+	new CommandArgument("literal", "random", 0, message => Math.random().toString(),
+		new CommandArgument("number", "min", 0, (message, inputs) => (Math.random() * inputs.min).toString(),
+			new CommandArgument("number", "max", 0, (message, inputs) => (Math.random() * (inputs.max - inputs.min) + inputs.min).toString())
 		)
 	),
-	new CommandArgument("literal", "ping", 0, function(message) {
-		return new CommandResult(true, "pong (" + client.ping + "ms)");
-	}),
-	new CommandArgument("literal", "savedata", 3, function(message) {
+	new CommandArgument("literal", "ping", 0, message => new CommandResult(true, "pong (" + client.ping + "ms)")),
+	new CommandArgument("literal", "savedata", 3, message => {
 		saveDataFile(err => {
 			if (err) {
 				log(err);
@@ -1528,7 +1533,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			}
 		});
 	}),
-	new CommandArgument("literal", "stop", 3, function(message) {
+	new CommandArgument("literal", "stop", 3, message => {
 		log("Stopping!");
 		message.react('👋').then(client.destroy, client.destroy).then(process.exit, process.exit);
 	})
