@@ -600,7 +600,7 @@ function startGameSession(message, options) {
 								else {
 									member.addRole(newSession.roleId, "User joined the game").then(
 										() => {
-											reaction.message.guild.channels.get(newSession.channelIDs.text).send(member + " joined!");
+											reaction.message.guild.channels.get(newSession.channelIDs.text).send("➕ " + member + " joined the game!");
 											reaction.remove(reactor).catch(log);
 										},
 										err => {
@@ -1004,11 +1004,11 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 		
 		if (message.member.roles.exists('name', "Gamer")) {
 			message.member.removeRole(roleGamer, "Player used `!gamer` command");
-			return new CommandResult(true, message.author.username + " is no longer a gamer and will no longer be notified of games.");
+			return new CommandResult(true, "🔕 You're no longer a gamer and so you'll no longer be notified of games.");
 		}
 		else {
 			message.member.addRole(roleGamer, "Player used `!gamer` command");
-			return new CommandResult(true, message.author.username + " is now a gamer and will be notified of games.");
+			return new CommandResult(true, "🔔 You're now a gamer and you'll will be notified of games.");
 		}
 	}),
 	new CommandArgument("literal", "emoji", 1, null, [
@@ -1184,7 +1184,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			}
 			message.member.removeRole(game.roleId, "Player used `" + prefix + "game leave` command.").then(
 				() => {
-					let result = new CommandResult(true, message.member + " left the game.");
+					let result = new CommandResult(true, "❌ " + message.member + " left the game.");
 					result.evaluate(message);
 				},
 				err => {
