@@ -83,7 +83,7 @@ client.on('ready', () => {
 		if (timeleft <= 0) {
 			executeSchedule(schedule);
 			data.schedules.splice(i--, 1);
-			log("A schedule was executed " + (-timeleft) + "ms too late.");
+			log("A schedule with action \"" + schedule.action + "\" was executed " + (-timeleft) + "ms too late.");
 		}
 		else {
 			client.setTimeout(i => {
@@ -216,7 +216,7 @@ client.on('message', message => {
 		if (gamerRole) {
 			gamerRole.setMentionable(false, "Timeout on mentioning Gamer role").catch(log);
 			createSchedule({
-				"action": "resetGamerRole"
+				"action": "resetGamerRole",
 				"guildId": message.guild.id
 			}, 1200000);
 		}
