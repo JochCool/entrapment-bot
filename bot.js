@@ -814,7 +814,7 @@ CommandArgument.prototype.isInputAllowed = function(command) {
 	// Quotes
 	if (input.startsWith('"')) {
 		thisInputEnd = input.slice(1).indexOf('"')+2;
-		if (thisInputEnd < 0) {
+		if (thisInputEnd == 1) {
 			throw new CommandResult(false, "Please close your string!");
 		}
 		input = input.slice(1, thisInputEnd-1);
