@@ -63,7 +63,7 @@ client.on('ready', () => {
 			}
 			
 			// Say I'm online
-			let botFeedChannel = guild.channels.find('name', "bot-feed");
+			let botFeedChannel = guild.channels.find(channel => channel.name == "bot-feed");
 			if (botFeedChannel) {
 				botFeedChannel.send("I'm online! Version: " + botVersion).catch(log);
 			}
@@ -166,7 +166,7 @@ function executeSchedule(schedule) {
 	
 	switch (schedule.action) {
 		case "resetGamerRole":
-			let gamerRole = guild.roles.find("name", "Gamer");
+			let gamerRole = guild.roles.find(role => role.name == "Gamer");
 			if (!gamerRole) {
 				log("Couldn't find gamer role while handling a schedule to reset gamer role.");
 				break;
@@ -212,7 +212,7 @@ client.on('message', message => {
 	}
 	
 	if (message.mentions.roles.exists("name", "Gamer") && message.guild && message.guild.available) {
-		let gamerRole = message.guild.roles.find("name", "Gamer");
+		let gamerRole = message.guild.roles.find(role => role.name == "Gamer");
 		if (gamerRole) {
 			gamerRole.setMentionable(false, "Timeout on mentioning Gamer role").catch(log);
 			createSchedule({
@@ -376,8 +376,8 @@ function startGameSession(message, options) {
 		"botVersion": botVersion
 	};
 	
-	let teamBlueRole = message.guild.roles.find("name", "Team Blue");
-	let teamRedRole = message.guild.roles.find("name", "Team Red");
+	let teamBlueRole = message.guild.roles.find(role => role.name == "Team Blue");
+	let teamRedRole = message.guild.roles.find(role => role.name == "Team Red");
 	
 	// Create game role
 	message.guild.createRole({
@@ -545,7 +545,7 @@ function startGameSession(message, options) {
 			result.evaluate(message);
 			
 			// Update Games category name
-			let gamesCategory = message.guild.channels.find("name", "games").parent;
+			let gamesCategory = message.guild.channels.find(channel => channel.name == "games").parent;
 			if (gamesCategory) {
 				let numGames = 1;
 				for (var g = 0; g < data.guilds[newSession.guildId].gamesessions.length; g++) {
@@ -565,7 +565,7 @@ function startGameSession(message, options) {
 			}
 			
 			// Make announcement & save game
-			let gameAnnouncementChannel = message.guild.channels.find("name", "games");
+			let gameAnnouncementChannel = message.guild.channels.find(channel => channel.name == "games");
 			if (gameAnnouncementChannel) {
 				
 				// Remove default message
@@ -582,7 +582,7 @@ function startGameSession(message, options) {
 					data.guilds[newSession.guildId].noGameMessageId = null;
 				}
 				
-				let joinEmoji = message.guild.emojis.find("name", "EntrapmentNewGame");
+				let joinEmoji = message.guild.emojis.find(emoji => emoji.name == "EntrapmentNewGame");
 				if (joinEmoji) {
 					gameAnnouncementChannel.send("**Game #" + newSession.id + ": " + newSession.gameName + "**\nStarted by " + newSession.creatorUserName + "\n" + newSession.serverLocationMessage + "\nReact with " + joinEmoji + " to join!").then(
 						announcementMessage => {
@@ -730,11 +730,11 @@ function changeGameSession(message, inputs, userOpLevel) {
 		});
 		
 		// Update announcement message
-		let announcementChannel = message.guild.channels.find("name", "games")
+		let announcementChannel = message.guild.channels.find(channel => channel.name == "games")
 		if (announcementChannel) {
 			announcementChannel.fetchMessage(game.announcementMessageId).then(
 				announcementMessage => {
-					announcementMessage.edit("**Game #" + game.id + ": " + game.gameName + "**\nStarted by " + game.creatorUserName + "\n" + game.serverLocationMessage + "\nReact with " + message.guild.emojis.find("name", "EntrapmentNewGame") + " to join!").then(() => {log("Updated announcement message")}).catch(log);
+					announcementMessage.edit("**Game #" + game.id + ": " + game.gameName + "**\nStarted by " + game.creatorUserName + "\n" + game.serverLocationMessage + "\nReact with " + message.guild.emojis.find(emoji => emoji.name == "EntrapmentNewGame") + " to join!").then(() => {log("Updated announcement message")}).catch(log);
 				},
 				err => {
 					log("Couldn't find announcement message in " + announcementChannel + ": " + err);
@@ -1000,7 +1000,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 		})
 	),
 	new CommandArgument("literal", "gamer", 1, message => {
-		let roleGamer = message.guild.roles.find('name', "Gamer");
+		let roleGamer = message.guild.roles.find(role => role.name == "Gamer");
 		
 		if (message.member.roles.exists('name', "Gamer")) {
 			message.member.removeRole(roleGamer, "Player used `!gamer` command");
@@ -1016,7 +1016,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 			if (typeof data.guilds[message.guild.id].emojinames[message.author.id] == "undefined") {
 				return new CommandResult(false, "You don't have an emoji yet! Play a game of Entrapment and ask a moderator to add your emoji as a reward for playing along.");
 			}
-			let emojiToUpdate = message.guild.emojis.find('name', data.guilds[message.guild.id].emojinames[message.author.id]);
+			let emojiToUpdate = message.guild.emojis.find(emoji => emoji.name == data.guilds[message.guild.id].emojinames[message.author.id]);
 			if (!emojiToUpdate) {
 				return new CommandResult(false, "Your emoji appears to not exist. Please contact a moderator if you think this is an error.");
 			}
@@ -1058,10 +1058,10 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 				if (inputs.newName == data.guilds[message.guild.id].emojinames[message.author.id]) {
 					return new CommandResult(false, "Your emoji already has that name!");
 				}
-				if (message.guild.emojis.find('name', inputs.newName)) {
+				if (message.guild.emojis.find(emoji => emoji.name == inputs.newName)) {
 					return new CommandResult(false, "There is already an emoji with that name!");
 				}
-				let emojiToRename = message.guild.emojis.find('name', data.guilds[message.guild.id].emojinames[message.author.id]);
+				let emojiToRename = message.guild.emojis.find(emoji => emoji.name == data.guilds[message.guild.id].emojinames[message.author.id]);
 				if (!emojiToRename) {
 					return new CommandResult(false, "Your emoji appears to not exist. Please contact a moderator if you think this is an error.");
 				}
@@ -1098,7 +1098,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 					if (typeof oldEmojiName == "string") {
 						return new CommandResult(false, "This person already has an emoji. It's called " + oldEmojiName + ".");
 					}
-					if (message.guild.emojis.find('name', inputs.emojiName)) {
+					if (message.guild.emojis.find(emoji => emoji.name == inputs.emojiName)) {
 						return new CommandResult(false, "There is already an emoji with that name!");
 					}
 					let member = message.guild.members.get(inputs.userId);
@@ -1217,7 +1217,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 				}
 			}
 			
-			let announcementChannel = message.guild.channels.find("name", "games")
+			let announcementChannel = message.guild.channels.find(channel => channel.name == "games")
 			if (announcementChannel) {
 				
 				// Remove announcement message
@@ -1276,8 +1276,8 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 				log("Couldn't find the game role while stopping game " + game.id);
 			}
 			else {
-				let teamRedRole = message.guild.roles.find("name", "Team Red");
-				let teamBlueRole = message.guild.roles.find("name", "Team Blue");
+				let teamRedRole = message.guild.roles.find(role => role.name == "Team Red");
+				let teamBlueRole = message.guild.roles.find(role => role.name == "Team Blue");
 				gameRole.members.array().forEach(member => {
 					if (member.roles.has(teamBlueRole.id)) {
 						member.removeRole(teamBlueRole, "The game ended.");
@@ -1345,9 +1345,9 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 				return new CommandResult(false, "You are already in team blue! Type `" + prefix + "team none` to leave this team.");
 			}
 			if (message.member.roles.exists("name", "Team Red")) {
-				message.member.removeRole(message.guild.roles.find("name", "Team Red"), "Player used `" + prefix + "team` command").catch(log);
+				message.member.removeRole(message.guild.roles.find(role => role.name == "Team Red"), "Player used `" + prefix + "team` command").catch(log);
 			}
-			message.member.addRole(message.guild.roles.find("name", "Team Blue"), "Player used `" + prefix + "team` command").then(
+			message.member.addRole(message.guild.roles.find(role => role.name == "Team Blue"), "Player used `" + prefix + "team` command").then(
 				() => {
 					let result = new CommandResult(true);
 					result.evaluate(message);
@@ -1367,9 +1367,9 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 				return new CommandResult(false, "You are already in team red! Type `" + prefix + "team none` to leave this team.");
 			}
 			if (message.member.roles.exists("name", "Team Blue")) {
-				message.member.removeRole(message.guild.roles.find("name", "Team Blue"), "Player used `" + prefix + "team` command").catch(log);
+				message.member.removeRole(message.guild.roles.find(role => role.name == "Team Blue"), "Player used `" + prefix + "team` command").catch(log);
 			}
-			message.member.addRole(message.guild.roles.find("name", "Team Red"), "Player used `" + prefix + "team` command").then(
+			message.member.addRole(message.guild.roles.find(role => role.name == "Team Red"), "Player used `" + prefix + "team` command").then(
 				() => {
 					let result = new CommandResult(true);
 					result.evaluate(message);
@@ -1383,7 +1383,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 		}),
 		new CommandArgument("literal", "none", 1, message => {
 			if (message.member.roles.exists("name", "Team Blue")) {
-				message.member.removeRole(message.guild.roles.find("name", "Team Blue"), "Player used `" + prefix + "team` command").then(
+				message.member.removeRole(message.guild.roles.find(role => role.name == "Team Blue"), "Player used `" + prefix + "team` command").then(
 					() => {
 						let result = new CommandResult(true);
 						result.evaluate(message);
@@ -1396,7 +1396,7 @@ const commands = new CommandArgument("root", prefix, 0, null, [
 				);
 			}
 			else if (message.member.roles.exists("name", "Team Red")) {
-				message.member.removeRole(message.guild.roles.find("name", "Team Red"), "Player used `" + prefix + "team` command").then(
+				message.member.removeRole(message.guild.roles.find(role => role.name == "Team Red"), "Player used `" + prefix + "team` command").then(
 					() => {
 						let result = new CommandResult(true);
 						result.evaluate(message);
