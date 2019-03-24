@@ -123,7 +123,7 @@ client.on('guildCreate', guild => {
 });
 
 const newMemberRoles = ["Member"];
-client.on('guildMemberCreate', member => {
+client.on('guildMemberAdd', member => {
 	log("New guild member!");
 	if (!member.guild.available) {
 		log("Guild ain't available :/");
