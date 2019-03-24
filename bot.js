@@ -96,13 +96,13 @@ client.on('ready', () => {
 	client.user.setActivity("you", {"type": "LISTENING"}).catch(log);
 });
 
-client.on('disconnected', function() {
+client.on('disconnected', () => {
 	log("Disconnected from the server. Stopping!");
 	process.exit();
 });
 
-client.on('error', function() {
-	log("WebSocket error");
+client.on('error', error => {
+	log("Error: " + error);
 });
 
 client.on('guildCreate', guild => {
@@ -119,6 +119,23 @@ client.on('guildCreate', guild => {
 		};
 		saveDataFile();
 		log("Created data for new guild '" + guild.name + "' (ID: " + guild.id + ")");
+	}
+});
+
+const newMemberRoles = ["Member"];
+client.on('guildMemberCreate', member => {
+	log("New guild member!");
+	if (!member.guild.available) {
+		log("Guild ain't available :/");
+		return;
+	}
+	for (var i = 0; i < newMemberRoles.length; i++) {
+		let role = member.guild.roles.find(role => role.name == newMemberRoles[i]);
+		if (!role) {
+			log("Couldn't find role " + newMemberRoles[i] + " in guild " + member.guild + ".");
+			continue;
+		}
+		member.addRole(role).catch(log);
 	}
 });
 
